@@ -41,3 +41,7 @@ func (this *URL) Get(key string) string {
 func (this *URL) Query() url.Values {
 	return this.params
 }
+
+func (this *URL) RawURL() *url.URL {
+	return this.url
+}
