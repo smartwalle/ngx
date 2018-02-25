@@ -9,11 +9,27 @@ type URL struct {
 	params url.Values
 }
 
-func NewURL(rawURL string) *URL {
-	unescape, _ := url.QueryUnescape(rawURL)
-	var u = &URL{}
-	u.url, _ = url.Parse(unescape)
+func NewURL(rawURL string) (u *URL, err error) {
+	unescape, err := url.QueryUnescape(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	newURL, err := url.Parse(unescape)
+	if err != nil {
+		return nil, err
+	}
+
+	u = &URL{}
+	u.url = newURL
 	u.params = u.url.Query()
+	return u, nil
+}
+
+func MustURL(rawURL string) (u *URL) {
+	u, err := NewURL(rawURL)
+	if err != nil {
+		panic(err)
+	}
 	return u
 }
 
@@ -35,7 +51,7 @@ func (this *URL) Set(key, value string) {
 }
 
 func (this *URL) Get(key string) string {
-	return this.Get(key)
+	return this.params.Get(key)
 }
 
 func (this *URL) Query() url.Values {
