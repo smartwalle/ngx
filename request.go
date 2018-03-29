@@ -2,6 +2,7 @@ package ngx
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -87,6 +88,10 @@ func (this *Request) AddCookie(cookie *http.Cookie) {
 }
 
 func (this *Request) Exec() *Response {
+	return this.ExecWithContext(nil)
+}
+
+func (this *Request) ExecWithContext(ctx context.Context) *Response {
 	var req *http.Request
 	var err error
 	var body io.Reader
@@ -136,6 +141,9 @@ func (this *Request) Exec() *Response {
 	}
 
 	req, err = http.NewRequest(this.method, this.url, body)
+	if ctx != nil && req != nil {
+		req = req.WithContext(ctx)
+	}
 	if len(rawQuery) > 0 {
 		req.URL.RawQuery = rawQuery
 	}
