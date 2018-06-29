@@ -157,14 +157,14 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 		req.AddCookie(cookie)
 	}
 
-	resp, err := this.Client.Do(req)
-	if resp != nil {
-		defer resp.Body.Close()
+	rsp, err := this.Client.Do(req)
+	if rsp != nil {
+		defer rsp.Body.Close()
 	}
 	if err != nil {
 		return &Response{nil, nil, err}
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
-	return &Response{resp, data, err}
+	data, err := ioutil.ReadAll(rsp.Body)
+	return &Response{rsp, data, err}
 }
