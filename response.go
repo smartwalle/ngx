@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"io"
 	"fmt"
+	"bytes"
 )
 
 type Response struct {
@@ -159,4 +160,8 @@ func (this *Response) UnmarshalJSON(v interface{}) error {
 		return this.error
 	}
 	return json.Unmarshal(this.data, v)
+}
+
+func (this *Response) Reader() io.Reader {
+	return bytes.NewReader(this.data)
 }
