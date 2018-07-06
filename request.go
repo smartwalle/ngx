@@ -87,11 +87,11 @@ func (this *Request) AddCookie(cookie *http.Cookie) {
 	this.cookies = append(this.cookies, cookie)
 }
 
-func (this *Request) Exec() *Response {
-	return this.ExecWithContext(nil)
+func (this *Request) Do() (*http.Response, error) {
+	return this.DoWithContext(nil)
 }
 
-func (this *Request) ExecWithContext(ctx context.Context) *Response {
+func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var body io.Reader
@@ -107,7 +107,7 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 		} else if this.file != nil {
 			uploadFile, err := os.Open(this.file.path)
 			if err != nil {
-				return &Response{nil, nil, err}
+				return nil, err
 			}
 			defer uploadFile.Close()
 
@@ -115,11 +115,11 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 			writer := multipart.NewWriter(bodyByte)
 			part, err := writer.CreateFormFile(this.file.name, this.file.filename)
 			if err != nil {
-				return &Response{nil, nil, err}
+				return nil, err
 			}
 			_, err = io.Copy(part, uploadFile)
 			if err != nil {
-				return &Response{nil, nil, err}
+				return nil, err
 			}
 
 			for key, values := range this.params {
@@ -130,7 +130,7 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 
 			err = writer.Close()
 			if err != nil {
-				return &Response{nil, nil, err}
+				return nil, err
 			}
 
 			this.SetContentType(writer.FormDataContentType())
@@ -149,7 +149,7 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 	}
 
 	if err != nil {
-		return &Response{nil, nil, err}
+		return nil, err
 	}
 	req.Header = this.header
 
@@ -157,14 +157,21 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 		req.AddCookie(cookie)
 	}
 
-	rsp, err := this.Client.Do(req)
+	return this.Client.Do(req)
+}
+
+func (this *Request) Exec() *Response {
+	return this.ExecWithContext(nil)
+}
+
+func (this *Request) ExecWithContext(ctx context.Context) *Response {
+	rsp, err := this.DoWithContext(ctx)
 	if rsp != nil {
 		defer rsp.Body.Close()
 	}
 	if err != nil {
-		return &Response{nil, nil, err}
+		return &Response{rsp, nil, err}
 	}
-
 	data, err := ioutil.ReadAll(rsp.Body)
 	return &Response{rsp, data, err}
 }
@@ -174,65 +181,28 @@ func (this *Request) Download(savePath string) *Response {
 }
 
 func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *Response {
-	var req *http.Request
-	var err error
-	var body io.Reader
-	var rawQuery string
-
-	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
-		if len(this.params) > 0 {
-			rawQuery = this.params.Encode()
-		}
-	} else {
-		if this.body != nil {
-			body = this.body
-		} else if this.params != nil {
-			body = strings.NewReader(this.params.Encode())
-		}
-	}
-
-	req, err = http.NewRequest(this.method, this.url, body)
-	if ctx != nil && req != nil {
-		req = req.WithContext(ctx)
-	}
-	if len(rawQuery) > 0 {
-		req.URL.RawQuery = rawQuery
-	}
-
-	if err != nil {
-		return &Response{nil, nil, err}
-	}
-	req.Header = this.header
-
-	for _, cookie := range this.cookies {
-		req.AddCookie(cookie)
-	}
-
-	rsp, err := this.Client.Do(req)
+	rsp, err := this.DoWithContext(ctx)
 	if rsp != nil {
 		defer rsp.Body.Close()
 	}
 	if err != nil {
-		return &Response{nil, nil, err}
+		return &Response{rsp, nil, err}
 	}
 
-	file, err := os.Create(savePath)
+	nFile, err := os.Create(savePath)
 	if err != nil {
 		return &Response{nil, nil, err}
 	}
-	defer file.Close()
+	defer nFile.Close()
 
 	buf := make([]byte, 1024)
-
 	for {
 		size, _ := rsp.Body.Read(buf)
 		if size == 0 {
 			break
 		}
-		file.Write(buf[:size])
+		nFile.Write(buf[:size])
 	}
-
 	data := []byte(savePath)
-
 	return &Response{rsp, data, err}
 }
