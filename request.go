@@ -168,3 +168,71 @@ func (this *Request) ExecWithContext(ctx context.Context) *Response {
 	data, err := ioutil.ReadAll(rsp.Body)
 	return &Response{rsp, data, err}
 }
+
+func (this *Request) Download(savePath string) *Response {
+	return this.DownloadWithContext(nil, savePath)
+}
+
+func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *Response {
+	var req *http.Request
+	var err error
+	var body io.Reader
+	var rawQuery string
+
+	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
+		if len(this.params) > 0 {
+			rawQuery = this.params.Encode()
+		}
+	} else {
+		if this.body != nil {
+			body = this.body
+		} else if this.params != nil {
+			body = strings.NewReader(this.params.Encode())
+		}
+	}
+
+	req, err = http.NewRequest(this.method, this.url, body)
+	if ctx != nil && req != nil {
+		req = req.WithContext(ctx)
+	}
+	if len(rawQuery) > 0 {
+		req.URL.RawQuery = rawQuery
+	}
+
+	if err != nil {
+		return &Response{nil, nil, err}
+	}
+	req.Header = this.header
+
+	for _, cookie := range this.cookies {
+		req.AddCookie(cookie)
+	}
+
+	rsp, err := this.Client.Do(req)
+	if rsp != nil {
+		defer rsp.Body.Close()
+	}
+	if err != nil {
+		return &Response{nil, nil, err}
+	}
+
+	file, err := os.Create(savePath)
+	if err != nil {
+		return &Response{nil, nil, err}
+	}
+	defer file.Close()
+
+	buf := make([]byte, 1024)
+
+	for {
+		size, _ := rsp.Body.Read(buf)
+		if size == 0 {
+			break
+		}
+		file.Write(buf[:size])
+	}
+
+	data := []byte(savePath)
+
+	return &Response{rsp, data, err}
+}
