@@ -29,10 +29,10 @@ type file struct {
 	path     string
 }
 
-func NewRequest(method, urlString string) *Request {
+func NewRequest(method, target string) *Request {
 	var r = &Request{}
 	r.method = strings.ToUpper(method)
-	r.url = urlString
+	r.url = target
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
