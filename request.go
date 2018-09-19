@@ -14,7 +14,7 @@ import (
 )
 
 type Request struct {
-	url     string
+	target  string
 	method  string
 	header  http.Header
 	params  url.Values
@@ -33,7 +33,7 @@ type file struct {
 func NewRequest(method, target string) *Request {
 	var r = &Request{}
 	r.method = strings.ToUpper(method)
-	r.url = target
+	r.target = target
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
@@ -44,7 +44,7 @@ func NewRequest(method, target string) *Request {
 func NewJSONRequest(target string, v interface{}) *Request {
 	var r = &Request{}
 	r.method = "POST"
-	r.url = target
+	r.target = target
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
@@ -153,7 +153,7 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 		}
 	}
 
-	req, err = http.NewRequest(this.method, this.url, body)
+	req, err = http.NewRequest(this.method, this.target, body)
 	if ctx != nil && req != nil {
 		req = req.WithContext(ctx)
 	}
