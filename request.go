@@ -43,7 +43,7 @@ func NewRequest(method, target string) *Request {
 
 func NewJSONRequest(target string, v interface{}) *Request {
 	var r = &Request{}
-	r.method = "POST"
+	r.method = http.MethodPost
 	r.target = target
 	r.params = url.Values{}
 	r.header = http.Header{}
