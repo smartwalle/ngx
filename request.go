@@ -3,6 +3,7 @@ package ngx
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -37,6 +38,18 @@ func NewRequest(method, target string) *Request {
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
 	r.SetContentType("application/x-www-form-urlencoded")
+	return r
+}
+
+func NewJSONRequest(target string, v interface{}) *Request {
+	var r = &Request{}
+	r.method = "POST"
+	r.url = target
+	r.params = url.Values{}
+	r.header = http.Header{}
+	r.Client = http.DefaultClient
+	r.SetContentType("application/json")
+	r.MarshalJSON(v)
 	return r
 }
 
@@ -205,4 +218,13 @@ func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *
 	}
 	data := []byte(savePath)
 	return &Response{rsp, data, err}
+}
+
+func (this *Request) MarshalJSON(v interface{}) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	this.SetBody(bytes.NewReader(data))
+	return nil
 }

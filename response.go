@@ -1,13 +1,13 @@
 package ngx
 
 import (
-	"encoding/json"
-	"net/http"
-	"crypto/tls"
-	"net/url"
-	"io"
-	"fmt"
 	"bytes"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 )
 
 type Response struct {
