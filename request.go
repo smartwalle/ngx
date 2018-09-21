@@ -48,7 +48,6 @@ func NewJSONRequest(target string, v interface{}) *Request {
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
-	r.SetContentType("application/json")
 	r.MarshalJSON(v)
 	return r
 }
@@ -220,11 +219,13 @@ func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *
 	return &Response{rsp, data, err}
 }
 
+// MarshalJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
 func (this *Request) MarshalJSON(v interface{}) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
 	this.SetBody(bytes.NewReader(data))
+	this.SetContentType("application/json")
 	return nil
 }
