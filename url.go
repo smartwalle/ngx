@@ -61,3 +61,13 @@ func (this *URL) Query() url.Values {
 func (this *URL) RawURL() *url.URL {
 	return this.url
 }
+
+func URLEncode(s string) string {
+	s = url.QueryEscape(s)
+	return s
+}
+
+func URLDecode(s string) string {
+	s, _ = url.QueryUnescape(s)
+	return s
+}
