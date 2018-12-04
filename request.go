@@ -13,6 +13,29 @@ import (
 	"strings"
 )
 
+// --------------------------------------------------------------------------------
+const (
+	K_CONTENT_TYPE_JSON       = "application/json"
+	K_CONTENT_TYPE_XML        = "application/xml"
+	K_CONTENT_TYPE_FORM       = "application/x-www-form-urlencoded"
+	K_CONTENT_TYPE_FORM_DATA  = "application/x-www-form-urlencoded"
+	K_CONTENT_TYPE_URLENCODED = "application/x-www-form-urlencoded"
+	K_CONTENT_TYPE_HTML       = "text/html"
+	K_CONTENT_TYPE_TEXT       = "text/plain"
+	K_CONTENT_TYPE_MULTIPART  = "multipart/form-data"
+)
+
+const (
+	POST    = "POST"
+	GET     = "GET"
+	HEAD    = "HEAD"
+	PUT     = "PUT"
+	DELETE  = "DELETE"
+	PATCH   = "PATCH"
+	OPTIONS = "OPTIONS"
+)
+
+// --------------------------------------------------------------------------------
 type Request struct {
 	target  string
 	method  string
@@ -30,6 +53,7 @@ type file struct {
 	path     string
 }
 
+// --------------------------------------------------------------------------------
 func NewRequest(method, target string) *Request {
 	var r = &Request{}
 	r.method = strings.ToUpper(method)
@@ -37,7 +61,7 @@ func NewRequest(method, target string) *Request {
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
-	r.SetContentType("application/x-www-form-urlencoded")
+	r.SetContentType(K_CONTENT_TYPE_URLENCODED)
 	return r
 }
 
@@ -226,6 +250,6 @@ func (this *Request) MarshalJSON(v interface{}) error {
 		return err
 	}
 	this.SetBody(bytes.NewReader(data))
-	this.SetContentType("application/json")
+	this.SetContentType(K_CONTENT_TYPE_JSON)
 	return nil
 }

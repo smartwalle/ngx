@@ -1,19 +1,19 @@
 package main
 
 import (
-	"github.com/PuerkitoBio/goquery"
+	"flag"
 	"fmt"
-	"strings"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/smartwalle/conv4go"
 	"github.com/smartwalle/ngx"
 	"github.com/tealeg/xlsx"
-	"github.com/smartwalle/conv4go"
-	"os"
 	"io/ioutil"
-	"flag"
-	"time"
-	"net/http"
 	"math/rand"
+	"net/http"
 	"net/url"
+	"os"
+	"strings"
+	"time"
 )
 
 func main() {
@@ -64,7 +64,7 @@ func main() {
 		cityList = []string{city}
 	}
 
-	_, err := os.Stat("./"+keyword)
+	_, err := os.Stat("./" + keyword)
 	if os.IsNotExist(err) {
 		os.MkdirAll("./"+keyword, os.ModePerm)
 	}
@@ -108,7 +108,7 @@ func loadCityList() []string {
 	}
 	defer cityFile.Close()
 
-	data, err :=ioutil.ReadAll(cityFile)
+	data, err := ioutil.ReadAll(cityFile)
 	if err != nil {
 		fmt.Println(err)
 		return nil
