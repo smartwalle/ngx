@@ -15,24 +15,24 @@ import (
 
 // --------------------------------------------------------------------------------
 const (
-	K_CONTENT_TYPE_JSON       = "application/json"
-	K_CONTENT_TYPE_XML        = "application/xml"
-	K_CONTENT_TYPE_FORM       = "application/x-www-form-urlencoded"
-	K_CONTENT_TYPE_FORM_DATA  = "application/x-www-form-urlencoded"
-	K_CONTENT_TYPE_URLENCODED = "application/x-www-form-urlencoded"
-	K_CONTENT_TYPE_HTML       = "text/html"
-	K_CONTENT_TYPE_TEXT       = "text/plain"
-	K_CONTENT_TYPE_MULTIPART  = "multipart/form-data"
+	ContentTypeJSON      = "application/json"
+	ContentTypeXML       = "application/xml"
+	ContentTypeForm      = "application/x-www-form-urlencoded"
+	ContentTypeFormData  = "application/x-www-form-urlencoded"
+	ContentTypeURLEncode = "application/x-www-form-urlencoded"
+	ContentTypeHTML      = "text/html"
+	ContentTypeText      = "text/plain"
+	ContentTypeMultipart = "multipart/form-data"
 )
 
 const (
-	POST    = "POST"
-	GET     = "GET"
-	HEAD    = "HEAD"
-	PUT     = "PUT"
-	DELETE  = "DELETE"
-	PATCH   = "PATCH"
-	OPTIONS = "OPTIONS"
+	Post    = http.MethodPost
+	Get     = http.MethodGet
+	Head    = http.MethodHead
+	Put     = http.MethodPut
+	Delete  = http.MethodDelete
+	Patch   = http.MethodPatch
+	Options = http.MethodOptions
 )
 
 // --------------------------------------------------------------------------------
@@ -61,18 +61,18 @@ func NewRequest(method, target string) *Request {
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
-	r.SetContentType(K_CONTENT_TYPE_URLENCODED)
+	r.SetContentType(ContentTypeURLEncode)
 	return r
 }
 
-func NewJSONRequest(target string, v interface{}) *Request {
+func NewRequestWithJSON(method, target string, param interface{}) *Request {
 	var r = &Request{}
-	r.method = http.MethodPost
+	r.method = strings.ToUpper(method)
 	r.target = target
 	r.params = url.Values{}
 	r.header = http.Header{}
 	r.Client = http.DefaultClient
-	r.MarshalJSON(v)
+	r.WriteJSON(param)
 	return r
 }
 
@@ -94,17 +94,14 @@ func (this *Request) SetHeaders(header http.Header) {
 
 func (this *Request) SetBody(body io.Reader) {
 	this.body = body
-	this.params = nil
 }
 
 func (this *Request) AddParam(key, value string) {
 	this.params.Add(key, value)
-	this.body = nil
 }
 
 func (this *Request) SetParam(key, value string) {
 	this.params.Set(key, value)
-	this.body = nil
 }
 
 func (this *Request) SetParams(params url.Values) {
@@ -137,6 +134,9 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 		if len(this.params) > 0 {
 			rawQuery = this.params.Encode()
 		}
+		if this.body != nil {
+			body = this.body
+		}
 	} else {
 		if this.body != nil {
 			body = this.body
@@ -164,14 +164,13 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 				}
 			}
 
-			err = writer.Close()
-			if err != nil {
+			if err = writer.Close(); err != nil {
 				return nil, err
 			}
 
 			this.SetContentType(writer.FormDataContentType())
 			body = bodyByte
-		} else if this.params != nil {
+		} else if len(this.params) > 0 {
 			body = strings.NewReader(this.params.Encode())
 		}
 	}
@@ -243,13 +242,13 @@ func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *
 	return &Response{rsp, data, err}
 }
 
-// MarshalJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
-func (this *Request) MarshalJSON(v interface{}) error {
+// WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
+func (this *Request) WriteJSON(v interface{}) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
 	this.SetBody(bytes.NewReader(data))
-	this.SetContentType(K_CONTENT_TYPE_JSON)
+	this.SetContentType(ContentTypeJSON)
 	return nil
 }
