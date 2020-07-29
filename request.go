@@ -136,10 +136,10 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 	var req *http.Request
 	var err error
 	var body io.Reader
-	var parseQuery = false
+	var mergeQuery = false
 
 	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
-		parseQuery = true
+		mergeQuery = true
 	} else if this.body != nil {
 		body = this.body
 	} else if len(this.files) > 0 {
@@ -180,7 +180,7 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 		req = req.WithContext(ctx)
 	}
 
-	if parseQuery {
+	if mergeQuery {
 		if len(this.params) > 0 {
 			var query = req.URL.Query()
 			for key, values := range this.params {
