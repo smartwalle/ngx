@@ -44,13 +44,13 @@ type Request struct {
 	body    io.Reader
 	Client  *http.Client
 	cookies []*http.Cookie
-	file    *file
+	files   map[string]*file
 }
 
 type file struct {
 	name     string
 	filename string
-	path     string
+	filepath string
 }
 
 // --------------------------------------------------------------------------------
@@ -108,12 +108,20 @@ func (this *Request) SetParams(params url.Values) {
 	this.params = params
 }
 
-func (this *Request) AddFile(name, filename, path string) {
-	this.file = &file{name, filename, path}
+func (this *Request) AddFile(name, filename, filepath string) {
+	if this.files == nil {
+		this.files = make(map[string]*file)
+	}
+	if filename == "" {
+		filename = name
+	}
+	this.files[name] = &file{name, filename, filepath}
 }
 
-func (this *Request) RemoveFile() {
-	this.file = nil
+func (this *Request) RemoveFile(name string) {
+	if this.files != nil {
+		delete(this.files, name)
+	}
 }
 
 func (this *Request) AddCookie(cookie *http.Cookie) {
@@ -128,59 +136,62 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 	var req *http.Request
 	var err error
 	var body io.Reader
-	var rawQuery string
+	var parseQuery = false
 
 	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
-		if len(this.params) > 0 {
-			rawQuery = this.params.Encode()
-		}
-		if this.body != nil {
-			body = this.body
-		}
-	} else {
-		if this.body != nil {
-			body = this.body
-		} else if this.file != nil {
-			uploadFile, err := os.Open(this.file.path)
+		parseQuery = true
+	} else if this.body != nil {
+		body = this.body
+	} else if len(this.files) > 0 {
+		var bodyBuffer = &bytes.Buffer{}
+		var bodyWriter = multipart.NewWriter(bodyBuffer)
+
+		for _, file := range this.files {
+			fileContent, err := ioutil.ReadFile(file.filepath)
 			if err != nil {
 				return nil, err
 			}
-			defer uploadFile.Close()
-
-			bodyByte := &bytes.Buffer{}
-			writer := multipart.NewWriter(bodyByte)
-			part, err := writer.CreateFormFile(this.file.name, this.file.filename)
+			fileWriter, err := bodyWriter.CreateFormFile(file.name, file.filename)
 			if err != nil {
 				return nil, err
 			}
-			_, err = io.Copy(part, uploadFile)
-			if err != nil {
+			if _, err = fileWriter.Write(fileContent); err != nil {
 				return nil, err
 			}
-
-			for key, values := range this.params {
-				for _, value := range values {
-					writer.WriteField(key, value)
-				}
-			}
-
-			if err = writer.Close(); err != nil {
-				return nil, err
-			}
-
-			this.SetContentType(writer.FormDataContentType())
-			body = bodyByte
-		} else if len(this.params) > 0 {
-			body = strings.NewReader(this.params.Encode())
 		}
+		for key, values := range this.params {
+			for _, value := range values {
+				bodyWriter.WriteField(key, value)
+			}
+		}
+
+		if err = bodyWriter.Close(); err != nil {
+			return nil, err
+		}
+
+		this.SetContentType(bodyWriter.FormDataContentType())
+		body = bodyBuffer
+	} else if len(this.params) > 0 {
+		body = strings.NewReader(this.params.Encode())
 	}
 
 	req, err = http.NewRequest(this.method, this.target, body)
 	if ctx != nil && req != nil {
 		req = req.WithContext(ctx)
 	}
-	if len(rawQuery) > 0 {
-		req.URL.RawQuery = rawQuery
+
+	if parseQuery {
+		if len(this.params) > 0 {
+			var query = req.URL.Query()
+			for key, values := range this.params {
+				for _, value := range values {
+					query.Add(key, value)
+				}
+			}
+			req.URL.RawQuery = query.Encode()
+		}
+	} else {
+		req.URL.RawQuery = req.URL.Query().Encode()
 	}
 
 	if err != nil {
