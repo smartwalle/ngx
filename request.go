@@ -42,6 +42,7 @@ type Request struct {
 	method  string
 	header  http.Header
 	params  url.Values
+	query   url.Values
 	body    io.Reader
 	Client  *http.Client
 	cookies []*http.Cookie
@@ -56,14 +57,20 @@ type file struct {
 
 // --------------------------------------------------------------------------------
 func NewRequest(method, target string) *Request {
-	var r = &Request{}
-	r.method = strings.ToUpper(method)
-	r.target = target
-	r.params = url.Values{}
-	r.header = http.Header{}
-	r.Client = http.DefaultClient
-	r.SetContentType(ContentTypeURLEncode)
-	return r
+	var nURL, _ = url.Parse(target)
+	var req = &Request{}
+	req.method = strings.ToUpper(method)
+	req.target = target
+	req.params = url.Values{}
+	if nURL != nil {
+		req.query = nURL.Query()
+	} else {
+		req.query = url.Values{}
+	}
+	req.header = http.Header{}
+	req.Client = http.DefaultClient
+	req.SetContentType(ContentTypeURLEncode)
+	return req
 }
 
 func NewJSONRequest(method, target string, param interface{}) *Request {
@@ -100,8 +107,24 @@ func (this *Request) SetParam(key, value string) {
 	this.params.Set(key, value)
 }
 
+func (this *Request) DelParam(key string) {
+	this.params.Del(key)
+}
+
 func (this *Request) SetParams(params url.Values) {
 	this.params = params
+}
+
+func (this *Request) AddQuery(key, value string) {
+	this.query.Add(key, value)
+}
+
+func (this *Request) SetQuery(key, value string) {
+	this.query.Set(key, value)
+}
+
+func (this *Request) DelQuery(key string) {
+	this.query.Del(key)
 }
 
 func (this *Request) AddFile(name, filename, filepath string) {
@@ -114,7 +137,7 @@ func (this *Request) AddFile(name, filename, filepath string) {
 	this.files[name] = &file{name, filename, filepath}
 }
 
-func (this *Request) RemoveFile(name string) {
+func (this *Request) DelFile(name string) {
 	if this.files != nil {
 		delete(this.files, name)
 	}
@@ -132,10 +155,10 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 	var req *http.Request
 	var err error
 	var body io.Reader
-	var mergeQuery = false
+	var mergeParam = false
 
 	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
-		mergeQuery = true
+		mergeParam = true
 	}
 
 	if this.body != nil {
@@ -178,19 +201,14 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 		req = req.WithContext(ctx)
 	}
 
-	if mergeQuery {
-		if len(this.params) > 0 {
-			var query = req.URL.Query()
-			for key, values := range this.params {
-				for _, value := range values {
-					query.Add(key, value)
-				}
+	if mergeParam {
+		for key, values := range this.params {
+			for _, value := range values {
+				this.query.Add(key, value)
 			}
-			req.URL.RawQuery = query.Encode()
 		}
-	} else {
-		req.URL.RawQuery = req.URL.Query().Encode()
 	}
+	req.URL.RawQuery = this.query.Encode()
 
 	if err != nil {
 		return nil, err

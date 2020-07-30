@@ -9,6 +9,7 @@ func main() {
 	var get = ngx.NewRequest(ngx.Get, "http://192.168.1.99:9090/get?q1=GET URL中的参数1&q2=GET URL中的参数2")
 	get.AddParam("k1", "GET 请求参数1")
 	get.AddParam("k2", "GET 请求参数2")
+	get.AddQuery("q3", "GET URL中的参数3")
 	get.Exec()
 
 	var getBody = ngx.NewRequest(ngx.Get, "http://192.168.1.99:9090/get_body?q1=GET URL中的参数1&q2=GET URL中的参数2")
@@ -21,6 +22,7 @@ func main() {
 	var post = ngx.NewRequest(ngx.Post, "http://192.168.1.99:9090/post?q1=POST URL中的参数1&q2=POST URL中的参数2")
 	post.AddParam("k1", "POST 请求参数1")
 	post.AddParam("k2", "POST 请求参数2")
+	post.AddQuery("q3", "POST URL中的参数3")
 	post.Exec()
 
 	var postBody = ngx.NewRequest(ngx.Post, "http://192.168.1.99:9090/post_body?q1=POST URL中的参数1&q2=POST URL中的参数2")

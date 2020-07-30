@@ -34,7 +34,6 @@ func get(c *gin.Context) {
 
 func getWithBody(c *gin.Context) {
 	c.Request.ParseForm()
-	fmt.Println(c.Request.Header)
 	body, _ := ioutil.ReadAll(c.Request.Body)
 	fmt.Println("接收到 Body:", string(body))
 	for key, values := range c.Request.Form {
