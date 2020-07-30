@@ -36,7 +36,6 @@ const (
 	Options = http.MethodOptions
 )
 
-// --------------------------------------------------------------------------------
 type Request struct {
 	target  string
 	method  string
@@ -55,7 +54,6 @@ type file struct {
 	filepath string
 }
 
-// --------------------------------------------------------------------------------
 func NewRequest(method, target string) *Request {
 	var nURL, _ = url.Parse(target)
 	var req = &Request{}
