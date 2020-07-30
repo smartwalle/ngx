@@ -13,16 +13,17 @@ import (
 	"strings"
 )
 
-// --------------------------------------------------------------------------------
+type ContentType string
+
 const (
-	ContentTypeJSON      = "application/json"
-	ContentTypeXML       = "application/xml"
-	ContentTypeForm      = "application/x-www-form-urlencoded"
-	ContentTypeFormData  = "application/x-www-form-urlencoded"
-	ContentTypeURLEncode = "application/x-www-form-urlencoded"
-	ContentTypeHTML      = "text/html"
-	ContentTypeText      = "text/plain"
-	ContentTypeMultipart = "multipart/form-data"
+	ContentTypeJSON      ContentType = "application/json"
+	ContentTypeXML       ContentType = "application/xml"
+	ContentTypeForm      ContentType = "application/x-www-form-urlencoded"
+	ContentTypeFormData  ContentType = "application/x-www-form-urlencoded"
+	ContentTypeURLEncode ContentType = "application/x-www-form-urlencoded"
+	ContentTypeHTML      ContentType = "text/html"
+	ContentTypeText      ContentType = "text/plain"
+	ContentTypeMultipart ContentType = "multipart/form-data"
 )
 
 const (
@@ -65,19 +66,14 @@ func NewRequest(method, target string) *Request {
 	return r
 }
 
-func NewRequestWithJSON(method, target string, param interface{}) *Request {
-	var r = &Request{}
-	r.method = strings.ToUpper(method)
-	r.target = target
-	r.params = url.Values{}
-	r.header = http.Header{}
-	r.Client = http.DefaultClient
+func NewJSONRequest(method, target string, param interface{}) *Request {
+	var r = NewRequest(method, target)
 	r.WriteJSON(param)
 	return r
 }
 
-func (this *Request) SetContentType(contentType string) {
-	this.SetHeader("Content-Type", contentType)
+func (this *Request) SetContentType(contentType ContentType) {
+	this.SetHeader("Content-Type", string(contentType))
 }
 
 func (this *Request) AddHeader(key, value string) {
@@ -140,7 +136,9 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 
 	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
 		mergeQuery = true
-	} else if this.body != nil {
+	}
+
+	if this.body != nil {
 		body = this.body
 	} else if len(this.files) > 0 {
 		var bodyBuffer = &bytes.Buffer{}
@@ -169,7 +167,7 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 			return nil, err
 		}
 
-		this.SetContentType(bodyWriter.FormDataContentType())
+		this.SetContentType(ContentType(bodyWriter.FormDataContentType()))
 		body = bodyBuffer
 	} else if len(this.params) > 0 {
 		body = strings.NewReader(this.params.Encode())
@@ -243,8 +241,8 @@ func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *
 
 	buf := make([]byte, 1024)
 	for {
-		size, _ := rsp.Body.Read(buf)
-		if size == 0 {
+		size, err := rsp.Body.Read(buf)
+		if size == 0 || err != nil {
 			break
 		}
 		nFile.Write(buf[:size])
