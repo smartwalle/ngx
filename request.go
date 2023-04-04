@@ -185,20 +185,26 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 		this.SetContentType(ContentType(bodyWriter.FormDataContentType()))
 		body = bodyBuffer
 	} else if len(this.params) > 0 {
-		body = strings.NewReader(this.params.Encode())
+		if this.method == http.MethodGet ||
+			this.method == http.MethodTrace ||
+			this.method == http.MethodOptions ||
+			this.method == http.MethodHead ||
+			this.method == http.MethodDelete {
+			for key, values := range this.params {
+				for _, value := range values {
+					this.query.Add(key, value)
+				}
+			}
+		} else {
+			body = strings.NewReader(this.params.Encode())
+		}
 	}
+
 	req, err = http.NewRequestWithContext(ctx, this.method, this.target, body)
 	if err != nil {
 		return nil, err
 	}
 
-	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
-		for key, values := range this.params {
-			for _, value := range values {
-				this.query.Add(key, value)
-			}
-		}
-	}
 	req.URL.RawQuery = this.query.Encode()
 	req.Header = this.header
 
