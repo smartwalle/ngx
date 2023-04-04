@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -85,6 +84,10 @@ func (this *Request) AddHeader(key, value string) {
 	this.header.Add(key, value)
 }
 
+func (this *Request) DelHeader(key string) {
+	this.header.Del(key)
+}
+
 func (this *Request) SetHeader(key, value string) {
 	this.header.Set(key, value)
 }
@@ -101,12 +104,12 @@ func (this *Request) AddParam(key, value string) {
 	this.params.Add(key, value)
 }
 
-func (this *Request) SetParam(key, value string) {
-	this.params.Set(key, value)
-}
-
 func (this *Request) DelParam(key string) {
 	this.params.Del(key)
+}
+
+func (this *Request) SetParam(key, value string) {
+	this.params.Set(key, value)
 }
 
 func (this *Request) SetParams(params url.Values) {
@@ -117,12 +120,12 @@ func (this *Request) AddQuery(key, value string) {
 	this.query.Add(key, value)
 }
 
-func (this *Request) SetQuery(key, value string) {
-	this.query.Set(key, value)
-}
-
 func (this *Request) DelQuery(key string) {
 	this.query.Del(key)
+}
+
+func (this *Request) SetQuery(key, value string) {
+	this.query.Set(key, value)
 }
 
 func (this *Request) AddFile(name, filename, filepath string) {
@@ -145,19 +148,10 @@ func (this *Request) AddCookie(cookie *http.Cookie) {
 	this.cookies = append(this.cookies, cookie)
 }
 
-func (this *Request) Do() (*http.Response, error) {
-	return this.DoWithContext(nil)
-}
-
-func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) {
+func (this *Request) do(ctx context.Context) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var body io.Reader
-	var mergeParam = false
-
-	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
-		mergeParam = true
-	}
 
 	if this.body != nil {
 		body = this.body
@@ -166,7 +160,7 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 		var bodyWriter = multipart.NewWriter(bodyBuffer)
 
 		for _, file := range this.files {
-			fileContent, err := ioutil.ReadFile(file.filepath)
+			fileContent, err := os.ReadFile(file.filepath)
 			if err != nil {
 				return nil, err
 			}
@@ -193,13 +187,12 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 	} else if len(this.params) > 0 {
 		body = strings.NewReader(this.params.Encode())
 	}
-
-	req, err = http.NewRequest(this.method, this.target, body)
-	if ctx != nil && req != nil {
-		req = req.WithContext(ctx)
+	req, err = http.NewRequestWithContext(ctx, this.method, this.target, body)
+	if err != nil {
+		return nil, err
 	}
 
-	if mergeParam {
+	if this.method == http.MethodGet || this.method == http.MethodHead || this.method == http.MethodDelete {
 		for key, values := range this.params {
 			for _, value := range values {
 				this.query.Add(key, value)
@@ -207,10 +200,6 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 		}
 	}
 	req.URL.RawQuery = this.query.Encode()
-
-	if err != nil {
-		return nil, err
-	}
 	req.Header = this.header
 
 	for _, cookie := range this.cookies {
@@ -220,28 +209,20 @@ func (this *Request) DoWithContext(ctx context.Context) (*http.Response, error) 
 	return this.Client.Do(req)
 }
 
-func (this *Request) Exec() *Response {
-	return this.ExecWithContext(nil)
-}
-
-func (this *Request) ExecWithContext(ctx context.Context) *Response {
-	rsp, err := this.DoWithContext(ctx)
+func (this *Request) Exec(ctx context.Context) *Response {
+	rsp, err := this.do(ctx)
 	if rsp != nil {
 		defer rsp.Body.Close()
 	}
 	if err != nil {
 		return &Response{rsp, nil, err}
 	}
-	data, err := ioutil.ReadAll(rsp.Body)
+	data, err := io.ReadAll(rsp.Body)
 	return &Response{rsp, data, err}
 }
 
-func (this *Request) Download(savePath string) *Response {
-	return this.DownloadWithContext(nil, savePath)
-}
-
-func (this *Request) DownloadWithContext(ctx context.Context, savePath string) *Response {
-	rsp, err := this.DoWithContext(ctx)
+func (this *Request) Download(ctx context.Context, savePath string) *Response {
+	rsp, err := this.do(ctx)
 	if rsp != nil {
 		defer rsp.Body.Close()
 	}
