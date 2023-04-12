@@ -230,7 +230,7 @@ func (this *Request) Exec(ctx context.Context) *Response {
 	return &Response{rsp, data, err}
 }
 
-func (this *Request) Download(ctx context.Context, savePath string) *Response {
+func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	rsp, err := this.do(ctx)
 	if rsp != nil {
 		defer rsp.Body.Close()
@@ -239,21 +239,22 @@ func (this *Request) Download(ctx context.Context, savePath string) *Response {
 		return &Response{rsp, nil, err}
 	}
 
-	nFile, err := os.Create(savePath)
+	nFile, err := os.Create(filepath)
 	if err != nil {
 		return &Response{nil, nil, err}
 	}
 	defer nFile.Close()
 
 	buf := make([]byte, 1024)
+	var size int
 	for {
-		size, err := rsp.Body.Read(buf)
+		size, err = rsp.Body.Read(buf)
 		if size == 0 || err != nil {
 			break
 		}
 		nFile.Write(buf[:size])
 	}
-	data := []byte(savePath)
+	data := []byte(filepath)
 	return &Response{rsp, data, err}
 }
 
