@@ -34,15 +34,16 @@ const (
 )
 
 type Request struct {
-	target  string
-	method  string
-	header  http.Header
-	params  url.Values
-	query   url.Values
-	body    io.Reader
-	Client  *http.Client
-	cookies []*http.Cookie
-	files   map[string]*file
+	target   string
+	method   string
+	header   http.Header
+	params   url.Values
+	query    url.Values
+	body     io.Reader
+	Client   *http.Client
+	cookies  []*http.Cookie
+	files    map[string]*file
+	received func(total uint64, received uint64)
 }
 
 type file struct {
@@ -51,7 +52,7 @@ type file struct {
 	filepath string
 }
 
-func NewRequest(method, target string) *Request {
+func NewRequest(method, target string, opts ...Option) *Request {
 	var nURL, _ = url.Parse(target)
 	var req = &Request{}
 	req.method = strings.ToUpper(method)
@@ -65,11 +66,17 @@ func NewRequest(method, target string) *Request {
 	req.header = http.Header{}
 	req.Client = http.DefaultClient
 	req.SetContentType(ContentTypeURLEncode)
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt(req)
+		}
+	}
 	return req
 }
 
-func NewJSONRequest(method, target string, param interface{}) *Request {
-	var r = NewRequest(method, target)
+func NewJSONRequest(method, target string, param interface{}, opts ...Option) *Request {
+	var r = NewRequest(method, target, opts...)
 	r.WriteJSON(param)
 	return r
 }
@@ -165,13 +172,15 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 	} else if len(this.files) > 0 {
 		var bodyBuffer = &bytes.Buffer{}
 		var bodyWriter = multipart.NewWriter(bodyBuffer)
+		var fileContent []byte
+		var fileWriter io.Writer
 
 		for _, file := range this.files {
-			fileContent, err := os.ReadFile(file.filepath)
+			fileContent, err = os.ReadFile(file.filepath)
 			if err != nil {
 				return nil, err
 			}
-			fileWriter, err := bodyWriter.CreateFormFile(file.name, file.filename)
+			fileWriter, err = bodyWriter.CreateFormFile(file.name, file.filename)
 			if err != nil {
 				return nil, err
 			}
@@ -218,6 +227,16 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 	return this.Client.Do(req)
 }
 
+func (this *Request) exec(rsp *http.Response, w io.Writer) error {
+	var r = &receive{}
+	r.total = uint64(rsp.ContentLength)
+	r.handler = this.received
+	if _, err := io.Copy(w, io.TeeReader(rsp.Body, r)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (this *Request) Exec(ctx context.Context) *Response {
 	rsp, err := this.do(ctx)
 	if rsp != nil {
@@ -226,8 +245,14 @@ func (this *Request) Exec(ctx context.Context) *Response {
 	if err != nil {
 		return &Response{rsp, nil, err}
 	}
-	data, err := io.ReadAll(rsp.Body)
-	return &Response{rsp, data, err}
+
+	var w = bytes.NewBuffer(nil)
+
+	if err = this.exec(rsp, w); err != nil {
+		return &Response{rsp, nil, err}
+	}
+
+	return &Response{rsp, w.Bytes(), err}
 }
 
 func (this *Request) Download(ctx context.Context, filepath string) *Response {
@@ -239,23 +264,17 @@ func (this *Request) Download(ctx context.Context, filepath string) *Response {
 		return &Response{rsp, nil, err}
 	}
 
-	nFile, err := os.Create(filepath)
+	w, err := os.Create(filepath)
 	if err != nil {
 		return &Response{nil, nil, err}
 	}
-	defer nFile.Close()
+	defer w.Close()
 
-	buf := make([]byte, 1024)
-	var size int
-	for {
-		size, err = rsp.Body.Read(buf)
-		if size == 0 || err != nil {
-			break
-		}
-		nFile.Write(buf[:size])
+	if err = this.exec(rsp, w); err != nil {
+		return &Response{rsp, nil, err}
 	}
-	data := []byte(filepath)
-	return &Response{rsp, data, err}
+
+	return &Response{rsp, []byte(filepath), err}
 }
 
 // WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
