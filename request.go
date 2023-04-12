@@ -17,8 +17,6 @@ type ContentType string
 const (
 	ContentTypeJSON      ContentType = "application/json"
 	ContentTypeXML       ContentType = "application/xml"
-	ContentTypeForm      ContentType = "application/x-www-form-urlencoded"
-	ContentTypeFormData  ContentType = "application/x-www-form-urlencoded"
 	ContentTypeURLEncode ContentType = "application/x-www-form-urlencoded"
 	ContentTypeHTML      ContentType = "text/html"
 	ContentTypeText      ContentType = "text/plain"
