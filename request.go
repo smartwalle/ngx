@@ -42,7 +42,7 @@ type Request struct {
 	body     io.Reader
 	Client   *http.Client
 	cookies  []*http.Cookie
-	files    map[string]*file
+	files    map[string]file
 	received func(total uint64, received uint64)
 }
 
@@ -135,12 +135,12 @@ func (this *Request) SetQuery(key, value string) {
 
 func (this *Request) AddFile(name, filename, filepath string) {
 	if this.files == nil {
-		this.files = make(map[string]*file)
+		this.files = make(map[string]file)
 	}
 	if filename == "" {
 		filename = name
 	}
-	this.files[name] = &file{name, filename, filepath}
+	this.files[name] = file{name, filename, filepath}
 }
 
 func (this *Request) DelFile(name string) {
@@ -175,12 +175,12 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 		var fileContent []byte
 		var fileWriter io.Writer
 
-		for _, file := range this.files {
-			fileContent, err = os.ReadFile(file.filepath)
+		for _, f := range this.files {
+			fileContent, err = os.ReadFile(f.filepath)
 			if err != nil {
 				return nil, err
 			}
-			fileWriter, err = bodyWriter.CreateFormFile(file.name, file.filename)
+			fileWriter, err = bodyWriter.CreateFormFile(f.name, f.filename)
 			if err != nil {
 				return nil, err
 			}
