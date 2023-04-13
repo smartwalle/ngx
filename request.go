@@ -299,7 +299,7 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 		req.AddCookie(cookie)
 	}
 
-	return this.Client.Do(req.Clone(ctx))
+	return this.Client.Do(req)
 }
 
 func (this *Request) exec(rsp *http.Response, w io.Writer) error {
