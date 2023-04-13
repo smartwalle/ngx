@@ -288,12 +288,10 @@ func (this *Request) exec(rsp *http.Response, w io.Writer) error {
 
 func (this *Request) Exec(ctx context.Context) *Response {
 	rsp, err := this.do(ctx)
-	if rsp != nil {
-		defer rsp.Body.Close()
-	}
 	if err != nil {
-		return &Response{rsp, nil, err}
+		return &Response{nil, nil, err}
 	}
+	defer rsp.Body.Close()
 
 	var w = bytes.NewBuffer(nil)
 
@@ -306,12 +304,10 @@ func (this *Request) Exec(ctx context.Context) *Response {
 
 func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	rsp, err := this.do(ctx)
-	if rsp != nil {
-		defer rsp.Body.Close()
-	}
 	if err != nil {
 		return &Response{rsp, nil, err}
 	}
+	defer rsp.Body.Close()
 
 	w, err := os.Create(filepath)
 	if err != nil {
