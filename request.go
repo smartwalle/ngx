@@ -34,16 +34,17 @@ const (
 )
 
 type Request struct {
-	target   string
-	method   string
-	header   http.Header
-	params   url.Values
-	query    url.Values
-	body     io.Reader
-	Client   *http.Client
-	cookies  []*http.Cookie
-	files    map[string]file
-	received func(total uint64, received uint64)
+	target  string
+	method  string
+	header  http.Header
+	params  url.Values
+	query   url.Values
+	body    Body
+	Client  *http.Client
+	cookies []*http.Cookie
+	files   map[string]file
+	receive func(total uint64, finished uint64)
+	send    func(total uint64, finished uint64)
 }
 
 type file struct {
@@ -81,6 +82,17 @@ func NewJSONRequest(method, target string, param interface{}, opts ...Option) *R
 	return r
 }
 
+// WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
+func (this *Request) WriteJSON(v interface{}) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	this.SetBody(bytes.NewReader(data))
+	this.SetContentType(ContentTypeJSON)
+	return nil
+}
+
 func (this *Request) SetContentType(contentType ContentType) {
 	this.SetHeader("Content-Type", string(contentType))
 }
@@ -101,7 +113,7 @@ func (this *Request) SetHeaders(header http.Header) {
 	this.header = header
 }
 
-func (this *Request) SetBody(body io.Reader) {
+func (this *Request) SetBody(body Body) {
 	this.body = body
 }
 
@@ -156,15 +168,15 @@ func (this *Request) AddCookie(cookie *http.Cookie) {
 func (this *Request) do(ctx context.Context) (*http.Response, error) {
 	var req *http.Request
 	var err error
-	var body io.Reader
-	var transform bool
+	var body Body
+	var toQuery bool
 
 	if this.method == http.MethodGet ||
 		this.method == http.MethodTrace ||
 		this.method == http.MethodOptions ||
 		this.method == http.MethodHead ||
 		this.method == http.MethodDelete {
-		transform = true
+		toQuery = true
 	}
 
 	if this.body != nil {
@@ -200,8 +212,44 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 
 		this.SetContentType(ContentType(bodyWriter.FormDataContentType()))
 		body = bodyBuffer
-	} else if len(this.params) > 0 && !transform {
+	} else if len(this.params) > 0 && !toQuery {
 		body = strings.NewReader(this.params.Encode())
+	}
+
+	var getBody func() (io.ReadCloser, error)
+	var contentLength int64
+
+	if body != nil {
+		switch v := body.(type) {
+		case *bytes.Buffer:
+			contentLength = int64(v.Len())
+			buf := v.Bytes()
+			getBody = func() (io.ReadCloser, error) {
+				r := bytes.NewReader(buf)
+				return io.NopCloser(NewReader(r, this.send)), nil
+			}
+		case *bytes.Reader:
+			contentLength = int64(v.Len())
+			snapshot := *v
+			getBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return io.NopCloser(NewReader(&r, this.send)), nil
+			}
+		case *strings.Reader:
+			contentLength = int64(v.Len())
+			snapshot := *v
+			getBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return io.NopCloser(NewReader(&r, this.send)), nil
+			}
+		default:
+		}
+
+		if getBody != nil && contentLength == 0 {
+			getBody = func() (io.ReadCloser, error) { return http.NoBody, nil }
+		}
+
+		body = NewReader(body, this.send)
 	}
 
 	req, err = http.NewRequestWithContext(ctx, this.method, this.target, body)
@@ -209,7 +257,10 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 		return nil, err
 	}
 
-	if transform {
+	req.ContentLength = contentLength
+	req.GetBody = getBody
+
+	if toQuery {
 		for key, values := range this.params {
 			for _, value := range values {
 				this.query.Add(key, value)
@@ -224,14 +275,12 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 		req.AddCookie(cookie)
 	}
 
-	return this.Client.Do(req)
+	return this.Client.Do(req.Clone(ctx))
 }
 
 func (this *Request) exec(rsp *http.Response, w io.Writer) error {
-	var r = &receive{}
-	r.total = uint64(rsp.ContentLength)
-	r.handler = this.received
-	if _, err := io.Copy(w, io.TeeReader(rsp.Body, r)); err != nil {
+	var nWriter = NewWriter(w, uint64(rsp.ContentLength), this.receive)
+	if _, err := io.Copy(nWriter, rsp.Body); err != nil {
 		return err
 	}
 	return nil
@@ -275,15 +324,4 @@ func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	}
 
 	return &Response{rsp, []byte(filepath), err}
-}
-
-// WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
-func (this *Request) WriteJSON(v interface{}) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	this.SetBody(bytes.NewReader(data))
-	this.SetContentType(ContentTypeJSON)
-	return nil
 }

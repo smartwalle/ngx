@@ -1,9 +1,17 @@
 package ngx
 
-type Option func(opts *Request)
+type Option func(req *Request)
 
-func WithReceived(f func(total uint64, received uint64)) Option {
+// WithReceive 获取从服务端已接收数据大小
+func WithReceive(f func(total uint64, finished uint64)) Option {
 	return func(req *Request) {
-		req.received = f
+		req.receive = f
+	}
+}
+
+// WithSend 获取向服务端已发送数据大小
+func WithSend(f func(total uint64, finished uint64)) Option {
+	return func(req *Request) {
+		req.send = f
 	}
 }

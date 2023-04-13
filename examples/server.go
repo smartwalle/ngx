@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/smartwalle/ngx"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +22,7 @@ func main() {
 	s.DELETE("/delete", delete)
 	s.DELETE("/delete_body", deleteWithBody)
 
+	s.POST("/redirect", redirect)
 	s.POST("/upload", upload)
 	s.Run(":9090")
 }
@@ -89,6 +91,10 @@ func deleteWithBody(c *gin.Context) {
 	}
 }
 
+func redirect(c *gin.Context) {
+	c.Redirect(http.StatusTemporaryRedirect, "/upload")
+}
+
 func upload(c *gin.Context) {
 	c.Request.ParseMultipartForm(64 << 20)
 
@@ -96,19 +102,18 @@ func upload(c *gin.Context) {
 		fmt.Println("接收到请求参数:", key, values)
 	}
 
-	if err := writeFile(c.Request, "file1", fmt.Sprintf("%d", time.Now().UnixNano())); err != nil {
-		fmt.Println("操作文件发生错误:", err)
-		return
+	for key := range c.Request.MultipartForm.File {
+		if err := writeFile(c.Request, key, fmt.Sprintf("%d", time.Now().UnixNano())); err != nil {
+			fmt.Println("操作文件发生错误:", err)
+			return
+		}
 	}
 
-	if err := writeFile(c.Request, "file2", fmt.Sprintf("%d", time.Now().UnixNano())); err != nil {
-		fmt.Println("操作文件发生错误:", err)
-		return
-	}
+	c.String(http.StatusOK, "文件上传完成")
 }
 
 func writeFile(req *http.Request, name string, save string) error {
-	rFile, _, err := req.FormFile(name)
+	rFile, header, err := req.FormFile(name)
 	defer rFile.Close()
 	if err != nil {
 		return err
@@ -119,7 +124,9 @@ func writeFile(req *http.Request, name string, save string) error {
 		return err
 	}
 	defer nFile.Close()
-	if _, err = io.Copy(nFile, rFile); err != nil {
+	if _, err = io.Copy(ngx.NewWriter(nFile, uint64(header.Size), func(total uint64, finished uint64) {
+		fmt.Println(header.Filename, total, finished)
+	}), rFile); err != nil {
 		return err
 	}
 
