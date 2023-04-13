@@ -305,7 +305,7 @@ func (this *Request) Exec(ctx context.Context) *Response {
 func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	rsp, err := this.do(ctx)
 	if err != nil {
-		return &Response{rsp, nil, err}
+		return &Response{nil, nil, err}
 	}
 	defer rsp.Body.Close()
 
