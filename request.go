@@ -34,8 +34,8 @@ const (
 )
 
 type Request struct {
-	target  string
-	method  string
+	Target  string
+	Method  string
 	header  http.Header
 	params  url.Values
 	query   url.Values
@@ -56,8 +56,8 @@ type file struct {
 func NewRequest(method, target string, opts ...Option) *Request {
 	var nURL, _ = url.Parse(target)
 	var req = &Request{}
-	req.method = strings.ToUpper(method)
-	req.target = target
+	req.Method = strings.ToUpper(method)
+	req.Target = target
 	req.params = url.Values{}
 	if nURL != nil {
 		req.query = nURL.Query()
@@ -82,7 +82,7 @@ func NewJSONRequest(method, target string, param interface{}, opts ...Option) *R
 	return r
 }
 
-// WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务器端。
+// WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务端。
 func (this *Request) WriteJSON(v interface{}) error {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -113,6 +113,10 @@ func (this *Request) SetHeaders(header http.Header) {
 	this.header = header
 }
 
+func (this *Request) ResetHeaders() {
+	this.header = http.Header{}
+}
+
 func (this *Request) SetBody(body Body) {
 	this.body = body
 }
@@ -133,6 +137,10 @@ func (this *Request) SetParams(params url.Values) {
 	this.params = params
 }
 
+func (this *Request) ResetParams() {
+	this.params = url.Values{}
+}
+
 func (this *Request) AddQuery(key, value string) {
 	this.query.Add(key, value)
 }
@@ -143,6 +151,10 @@ func (this *Request) DelQuery(key string) {
 
 func (this *Request) SetQuery(key, value string) {
 	this.query.Set(key, value)
+}
+
+func (this *Request) ResetQuery() {
+	this.query = url.Values{}
 }
 
 func (this *Request) AddFile(name, filename, filepath string) {
@@ -161,8 +173,20 @@ func (this *Request) DelFile(name string) {
 	}
 }
 
+func (this *Request) ResetFile() {
+	this.files = nil
+}
+
 func (this *Request) AddCookie(cookie *http.Cookie) {
 	this.cookies = append(this.cookies, cookie)
+}
+
+func (this *Request) SetCookies(cookies []*http.Cookie) {
+	this.cookies = cookies
+}
+
+func (this *Request) ResetCookies() {
+	this.cookies = nil
 }
 
 func (this *Request) do(ctx context.Context) (*http.Response, error) {
@@ -171,11 +195,11 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 	var body Body
 	var toQuery bool
 
-	if this.method == http.MethodGet ||
-		this.method == http.MethodTrace ||
-		this.method == http.MethodOptions ||
-		this.method == http.MethodHead ||
-		this.method == http.MethodDelete {
+	if this.Method == http.MethodGet ||
+		this.Method == http.MethodTrace ||
+		this.Method == http.MethodOptions ||
+		this.Method == http.MethodHead ||
+		this.Method == http.MethodDelete {
 		toQuery = true
 	}
 
@@ -252,7 +276,7 @@ func (this *Request) do(ctx context.Context) (*http.Response, error) {
 		body = NewReader(body, this.send)
 	}
 
-	req, err = http.NewRequestWithContext(ctx, this.method, this.target, body)
+	req, err = http.NewRequestWithContext(ctx, this.Method, this.Target, body)
 	if err != nil {
 		return nil, err
 	}
