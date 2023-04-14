@@ -189,7 +189,7 @@ func (this *Request) ResetCookies() {
 	this.cookies = nil
 }
 
-func (this *Request) do(ctx context.Context) (*http.Response, error) {
+func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var body Body
@@ -311,7 +311,7 @@ func (this *Request) exec(rsp *http.Response, w io.Writer) error {
 }
 
 func (this *Request) Exec(ctx context.Context) *Response {
-	rsp, err := this.do(ctx)
+	rsp, err := this.Do(ctx)
 	if err != nil {
 		return &Response{nil, nil, err}
 	}
@@ -327,7 +327,7 @@ func (this *Request) Exec(ctx context.Context) *Response {
 }
 
 func (this *Request) Download(ctx context.Context, filepath string) *Response {
-	rsp, err := this.do(ctx)
+	rsp, err := this.Do(ctx)
 	if err != nil {
 		return &Response{nil, nil, err}
 	}
