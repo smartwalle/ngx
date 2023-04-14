@@ -10,9 +10,9 @@ type Reader interface {
 
 type reader struct {
 	Body
+	handler  func(total uint64, finished uint64)
 	total    uint64
 	finished uint64
-	handler  func(total uint64, finished uint64)
 }
 
 func NewReader(r Reader, handler func(total uint64, finished uint64)) *reader {

@@ -14,6 +14,8 @@ import (
 
 type ContentType string
 
+const kContentType = "Content-Type"
+
 const (
 	ContentTypeJSON      ContentType = "application/json"
 	ContentTypeXML       ContentType = "application/xml"
@@ -34,17 +36,17 @@ const (
 )
 
 type Request struct {
-	Target  string
-	Method  string
-	header  http.Header
-	params  url.Values
-	query   url.Values
 	body    Body
-	Client  *http.Client
-	cookies []*http.Cookie
+	client  *http.Client
+	header  http.Header
+	query   url.Values
+	params  url.Values
 	files   map[string]file
 	receive func(total uint64, finished uint64)
 	send    func(total uint64, finished uint64)
+	Method  string
+	target  string
+	cookies []*http.Cookie
 }
 
 type file struct {
@@ -57,21 +59,32 @@ func NewRequest(method, target string, opts ...Option) *Request {
 	var nURL, _ = url.Parse(target)
 	var req = &Request{}
 	req.Method = strings.ToUpper(method)
-	req.Target = target
-	req.params = url.Values{}
+	req.target = target
+
 	if nURL != nil {
 		req.query = nURL.Query()
 	} else {
 		req.query = url.Values{}
 	}
-	req.header = http.Header{}
-	req.Client = http.DefaultClient
-	req.SetContentType(ContentTypeURLEncode)
 
 	for _, opt := range opts {
 		if opt != nil {
 			opt(req)
 		}
+	}
+
+	if req.client == nil {
+		req.client = http.DefaultClient
+	}
+	if req.header == nil {
+		req.header = http.Header{}
+	}
+	if req.params == nil {
+		req.params = url.Values{}
+	}
+
+	if _, ok := req.header[kContentType]; !ok {
+		req.SetContentType(ContentTypeURLEncode)
 	}
 	return req
 }
@@ -94,7 +107,7 @@ func (this *Request) WriteJSON(v interface{}) error {
 }
 
 func (this *Request) SetContentType(contentType ContentType) {
-	this.SetHeader("Content-Type", string(contentType))
+	this.SetHeader(kContentType, string(contentType))
 }
 
 func (this *Request) AddHeader(key, value string) {
@@ -151,10 +164,6 @@ func (this *Request) DelQuery(key string) {
 
 func (this *Request) SetQuery(key, value string) {
 	this.query.Set(key, value)
-}
-
-func (this *Request) ResetQuery() {
-	this.query = url.Values{}
 }
 
 func (this *Request) AddFile(name, filename, filepath string) {
@@ -276,7 +285,7 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 		body = NewReader(body, this.send)
 	}
 
-	req, err = http.NewRequestWithContext(ctx, this.Method, this.Target, body)
+	req, err = http.NewRequestWithContext(ctx, this.Method, this.target, body)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +308,7 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 		req.AddCookie(cookie)
 	}
 
-	return this.Client.Do(req)
+	return this.client.Do(req)
 }
 
 func (this *Request) exec(rsp *http.Response, w io.Writer) error {
@@ -313,35 +322,35 @@ func (this *Request) exec(rsp *http.Response, w io.Writer) error {
 func (this *Request) Exec(ctx context.Context) *Response {
 	rsp, err := this.Do(ctx)
 	if err != nil {
-		return &Response{nil, nil, err}
+		return &Response{Response: nil, data: nil, error: err}
 	}
 	defer rsp.Body.Close()
 
 	var w = bytes.NewBuffer(nil)
 
 	if err = this.exec(rsp, w); err != nil {
-		return &Response{rsp, nil, err}
+		return &Response{Response: rsp, data: nil, error: err}
 	}
 
-	return &Response{rsp, w.Bytes(), err}
+	return &Response{Response: rsp, data: w.Bytes(), error: err}
 }
 
 func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	rsp, err := this.Do(ctx)
 	if err != nil {
-		return &Response{nil, nil, err}
+		return &Response{Response: nil, data: nil, error: err}
 	}
 	defer rsp.Body.Close()
 
 	w, err := os.Create(filepath)
 	if err != nil {
-		return &Response{nil, nil, err}
+		return &Response{Response: nil, data: nil, error: err}
 	}
 	defer w.Close()
 
 	if err = this.exec(rsp, w); err != nil {
-		return &Response{rsp, nil, err}
+		return &Response{Response: rsp, data: nil, error: err}
 	}
 
-	return &Response{rsp, []byte(filepath), err}
+	return &Response{Response: rsp, data: []byte(filepath), error: err}
 }

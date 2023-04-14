@@ -11,9 +11,9 @@ import (
 )
 
 type Response struct {
-	*http.Response
-	data  []byte
 	error error
+	*http.Response
+	data []byte
 }
 
 func (this *Response) Status() string {

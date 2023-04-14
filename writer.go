@@ -6,9 +6,9 @@ import (
 
 type writer struct {
 	io.Writer
-	total    uint64
-	finished uint64
 	handler  func(total uint64, finished uint64)
+	finished uint64
+	total    uint64
 }
 
 func NewWriter(w io.Writer, total uint64, handler func(total uint64, finished uint64)) *writer {
