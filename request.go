@@ -42,8 +42,8 @@ type Request struct {
 	query   url.Values
 	params  url.Values
 	files   map[string]file
-	receive func(total uint64, finished uint64)
-	send    func(total uint64, finished uint64)
+	receive func(total, chunk, finished uint64)
+	send    func(total, chunk, finished uint64)
 	Method  string
 	target  string
 	cookies []*http.Cookie

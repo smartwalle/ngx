@@ -6,12 +6,12 @@ import (
 
 type writer struct {
 	io.Writer
-	handler  func(total uint64, finished uint64)
+	handler  func(total, chunk, finished uint64)
 	finished uint64
 	total    uint64
 }
 
-func NewWriter(w io.Writer, total uint64, handler func(total uint64, finished uint64)) *writer {
+func NewWriter(w io.Writer, total uint64, handler func(total, chunk, finished uint64)) *writer {
 	return &writer{Writer: w, total: total, handler: handler}
 }
 
@@ -21,7 +21,7 @@ func (this *writer) Write(p []byte) (n int, err error) {
 	if n > 0 {
 		this.finished += uint64(n)
 		if this.handler != nil {
-			this.handler(this.total, this.finished)
+			this.handler(this.total, uint64(n), this.finished)
 		}
 	}
 

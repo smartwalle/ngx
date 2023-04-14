@@ -10,10 +10,10 @@ import (
 func main() {
 	var req = ngx.NewRequest(ngx.Post,
 		"http://192.168.1.99:9090/upload",
-		ngx.WithReceive(func(total uint64, finished uint64) {
+		ngx.WithReceive(func(total, chunk, finished uint64) {
 			fmt.Println("已接收:", total, finished)
 		}),
-		ngx.WithSend(func(total uint64, finished uint64) {
+		ngx.WithSend(func(total, chunk, finished uint64) {
 			fmt.Println("已发送:", time.Now().Unix(), total, finished)
 		}),
 	)

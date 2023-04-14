@@ -124,8 +124,8 @@ func writeFile(req *http.Request, name string, save string) error {
 		return err
 	}
 	defer nFile.Close()
-	if _, err = io.Copy(ngx.NewWriter(nFile, uint64(header.Size), func(total uint64, finished uint64) {
-		fmt.Println(header.Filename, total, finished)
+	if _, err = io.Copy(ngx.NewWriter(nFile, uint64(header.Size), func(total, chunk, finished uint64) {
+		fmt.Println(header.Filename, total, chunk, finished)
 	}), rFile); err != nil {
 		return err
 	}
