@@ -23,9 +23,10 @@ func (this *reader) Read(p []byte) (n int, err error) {
 	n, err = this.Body.Read(p)
 
 	if n > 0 {
-		this.finished += uint64(n)
+		var chunk = uint64(n)
+		this.finished += chunk
 		if this.handler != nil {
-			this.handler(this.total, uint64(n), this.finished)
+			this.handler(this.total, chunk, this.finished)
 		}
 	}
 
