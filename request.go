@@ -311,7 +311,7 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	return this.client.Do(req)
 }
 
-func (this *Request) exec(rsp *http.Response, w io.Writer) error {
+func (this *Request) copy(rsp *http.Response, w io.Writer) error {
 	var nWriter = NewWriter(w, uint64(rsp.ContentLength), this.receive)
 	if _, err := io.Copy(nWriter, rsp.Body); err != nil {
 		return err
@@ -328,7 +328,7 @@ func (this *Request) Exec(ctx context.Context) *Response {
 
 	var w = bytes.NewBuffer(nil)
 
-	if err = this.exec(rsp, w); err != nil {
+	if err = this.copy(rsp, w); err != nil {
 		return &Response{Response: rsp, data: nil, error: err}
 	}
 
@@ -348,7 +348,7 @@ func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	}
 	defer w.Close()
 
-	if err = this.exec(rsp, w); err != nil {
+	if err = this.copy(rsp, w); err != nil {
 		return &Response{Response: rsp, data: nil, error: err}
 	}
 
