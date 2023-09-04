@@ -60,7 +60,7 @@ func main() {
 	//var upload = ngx.NewRequest(ngx.Post, "http://192.168.1.99:9090/upload?q1=上传文件URL中的参数1&q2=上传文件URL中的参数2")
 	//upload.AddParam("k1", "上传文件请求参数1")
 	//upload.AddParam("k2", "上传文件请求参数2")
-	//upload.AddFile("file1", "", "1.jpg")
-	//upload.AddFile("file2", "", "2.jpg")
+	//upload.AddFilePath("file1", "", "1.jpg")
+	//upload.AddFilePath("file2", "", "2.jpg")
 	//upload.Exec(context.Background())
 }

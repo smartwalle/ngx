@@ -9,7 +9,7 @@ import (
 
 func main() {
 	var req = ngx.NewRequest(ngx.Post,
-		"http://192.168.1.99:9090/upload",
+		"http://127.0.0.1:9090/upload",
 		ngx.WithReceive(func(total, chunk, finished uint64) {
 			fmt.Println("已接收:", total, finished)
 		}),
@@ -18,8 +18,8 @@ func main() {
 		}),
 	)
 
-	req.AddFile("file1", "", "./1.jpg")
-	req.AddFile("file2", "", "./2.jpg")
+	req.AddFilePath("file1", "1.jpg", "./1.jpg")
+	req.AddFilePath("file2", "2.png", "./2.png")
 
-	req.Exec(context.Background())
+	fmt.Println(req.Exec(context.Background()).Error())
 }

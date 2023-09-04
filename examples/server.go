@@ -103,7 +103,7 @@ func upload(c *gin.Context) {
 	}
 
 	for key := range c.Request.MultipartForm.File {
-		if err := writeFile(c.Request, key, fmt.Sprintf("%d", time.Now().UnixNano())); err != nil {
+		if err := writeFile(c.Request, key); err != nil {
 			fmt.Println("操作文件发生错误:", err)
 			return
 		}
@@ -112,14 +112,14 @@ func upload(c *gin.Context) {
 	c.String(http.StatusOK, "文件上传完成")
 }
 
-func writeFile(req *http.Request, name string, save string) error {
+func writeFile(req *http.Request, name string) error {
 	rFile, header, err := req.FormFile(name)
 	defer rFile.Close()
 	if err != nil {
 		return err
 	}
 
-	nFile, err := os.Create(save)
+	nFile, err := os.Create(fmt.Sprintf("%d-%s", time.Now().UnixNano(), header.Filename))
 	if err != nil {
 		return err
 	}

@@ -41,18 +41,12 @@ type Request struct {
 	header  http.Header
 	query   url.Values
 	params  url.Values
-	files   map[string]file
+	files   map[string]FormFile
 	receive func(total, chunk, finished uint64)
 	send    func(total, chunk, finished uint64)
 	Method  string
 	target  string
 	cookies []*http.Cookie
-}
-
-type file struct {
-	name     string
-	filename string
-	filepath string
 }
 
 func NewRequest(method, target string, opts ...Option) *Request {
@@ -166,14 +160,25 @@ func (this *Request) SetQuery(key, value string) {
 	this.query.Set(key, value)
 }
 
-func (this *Request) AddFile(name, filename, filepath string) {
+func (this *Request) AddFile(name string, file FormFile) {
 	if this.files == nil {
-		this.files = make(map[string]file)
+		this.files = make(map[string]FormFile)
 	}
+	this.files[name] = file
+}
+
+func (this *Request) AddFilePath(name, filename, filepath string) {
 	if filename == "" {
 		filename = name
 	}
-	this.files[name] = file{name, filename, filepath}
+	this.AddFile(name, file{name: name, filename: filename, filepath: filepath})
+}
+
+func (this *Request) AddFileObject(name, filename string, file io.Reader) {
+	if filename == "" {
+		filename = name
+	}
+	this.AddFile(name, fileObject{name: name, filename: filename, reader: file})
 }
 
 func (this *Request) DelFile(name string) {
@@ -217,19 +222,9 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	} else if len(this.files) > 0 {
 		var bodyBuffer = &bytes.Buffer{}
 		var bodyWriter = multipart.NewWriter(bodyBuffer)
-		var fileContent []byte
-		var fileWriter io.Writer
 
 		for _, f := range this.files {
-			fileContent, err = os.ReadFile(f.filepath)
-			if err != nil {
-				return nil, err
-			}
-			fileWriter, err = bodyWriter.CreateFormFile(f.name, f.filename)
-			if err != nil {
-				return nil, err
-			}
-			if _, err = fileWriter.Write(fileContent); err != nil {
+			if err = f.WriteTo(bodyWriter); err != nil {
 				return nil, err
 			}
 		}
