@@ -7,9 +7,9 @@ import (
 
 type Option func(req *Request)
 
-func WithClient(c *http.Client) Option {
+func WithClient(client *http.Client) Option {
 	return func(req *Request) {
-		req.client = c
+		req.client = client
 	}
 }
 
@@ -19,19 +19,15 @@ func WithHeader(header http.Header) Option {
 	}
 }
 
-func WithParams(params url.Values) Option {
+func WithForm(form url.Values) Option {
 	return func(req *Request) {
-		req.params = params
+		req.form = form
 	}
 }
 
 func WithQuery(query url.Values) Option {
 	return func(req *Request) {
-		for key, values := range query {
-			for _, value := range values {
-				req.query.Add(key, value)
-			}
-		}
+		req.query = query
 	}
 }
 
@@ -48,15 +44,15 @@ func WithCookies(cookies []*http.Cookie) Option {
 }
 
 // WithReceive 获取从服务端已接收数据大小
-func WithReceive(f func(total, chunk, finished uint64)) Option {
+func WithReceive(fn func(total, chunk, finished uint64)) Option {
 	return func(req *Request) {
-		req.receive = f
+		req.receive = fn
 	}
 }
 
 // WithSend 获取向服务端已发送数据大小
-func WithSend(f func(total, chunk, finished uint64)) Option {
+func WithSend(fn func(total, chunk, finished uint64)) Option {
 	return func(req *Request) {
-		req.send = f
+		req.send = fn
 	}
 }

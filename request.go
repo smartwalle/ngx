@@ -3,7 +3,6 @@ package ngx
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -40,8 +39,8 @@ type Request struct {
 	client  *http.Client
 	header  http.Header
 	query   url.Values
-	params  url.Values
-	files   map[string]FormFile
+	form    url.Values
+	files   FormFiles
 	receive func(total, chunk, finished uint64)
 	send    func(total, chunk, finished uint64)
 	Method  string
@@ -57,8 +56,6 @@ func NewRequest(method, target string, opts ...Option) *Request {
 
 	if nURL != nil {
 		req.query = nURL.Query()
-	} else {
-		req.query = url.Values{}
 	}
 
 	for _, opt := range opts {
@@ -70,12 +67,6 @@ func NewRequest(method, target string, opts ...Option) *Request {
 	if req.client == nil {
 		req.client = http.DefaultClient
 	}
-	if req.header == nil {
-		req.header = http.Header{}
-	}
-	if req.params == nil {
-		req.params = url.Values{}
-	}
 
 	if _, ok := req.header[kContentType]; !ok {
 		req.SetContentType(ContentTypeURLEncode)
@@ -83,112 +74,56 @@ func NewRequest(method, target string, opts ...Option) *Request {
 	return req
 }
 
-func NewJSONRequest(method, target string, param interface{}, opts ...Option) *Request {
-	var r = NewRequest(method, target, opts...)
-	r.WriteJSON(param)
-	return r
-}
-
-// WriteJSON 将一个对象序列化为 JSON 字符串，并将其作为 http 请求的 body 发送给服务端。
-func (this *Request) WriteJSON(v interface{}) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	this.SetBody(bytes.NewReader(data))
-	this.SetContentType(ContentTypeJSON)
-	return nil
-}
-
 func (this *Request) SetContentType(contentType ContentType) {
-	this.SetHeader(kContentType, string(contentType))
-}
-
-func (this *Request) AddHeader(key, value string) {
-	this.header.Add(key, value)
-}
-
-func (this *Request) DelHeader(key string) {
-	this.header.Del(key)
-}
-
-func (this *Request) SetHeader(key, value string) {
-	this.header.Set(key, value)
-}
-
-func (this *Request) SetHeaders(header http.Header) {
-	this.header = header
-}
-
-func (this *Request) ResetHeaders() {
-	this.header = http.Header{}
+	this.Header().Set(kContentType, string(contentType))
 }
 
 func (this *Request) SetBody(body Body) {
 	this.body = body
 }
 
-func (this *Request) AddParam(key, value string) {
-	this.params.Add(key, value)
+func (this *Request) SetForm(form url.Values) {
+	this.form = form
 }
 
-func (this *Request) DelParam(key string) {
-	this.params.Del(key)
+func (this *Request) Form() url.Values {
+	if this.form == nil {
+		this.form = url.Values{}
+	}
+	return this.form
 }
 
-func (this *Request) SetParam(key, value string) {
-	this.params.Set(key, value)
+func (this *Request) SetQuery(query url.Values) {
+	this.query = query
 }
 
-func (this *Request) SetParams(params url.Values) {
-	this.params = params
+func (this *Request) Query() url.Values {
+	if this.query == nil {
+		this.query = url.Values{}
+	}
+	return this.query
 }
 
-func (this *Request) ResetParams() {
-	this.params = url.Values{}
+func (this *Request) SetHeader(header http.Header) {
+	this.header = header
 }
 
-func (this *Request) AddQuery(key, value string) {
-	this.query.Add(key, value)
+func (this *Request) Header() http.Header {
+	if this.header == nil {
+		this.header = http.Header{}
+	}
+	return this.header
 }
 
-func (this *Request) DelQuery(key string) {
-	this.query.Del(key)
-}
-
-func (this *Request) SetQuery(key, value string) {
-	this.query.Set(key, value)
-}
-
-func (this *Request) AddFile(name string, file FormFile) {
+func (this *Request) FileForm() FormFiles {
 	if this.files == nil {
-		this.files = make(map[string]FormFile)
+		this.files = FormFiles{}
 	}
-	this.files[name] = file
+	return this.files
 }
 
-func (this *Request) AddFilePath(name, filename, filepath string) {
-	if filename == "" {
-		filename = name
-	}
-	this.AddFile(name, file{name: name, filename: filename, filepath: filepath})
-}
-
-func (this *Request) AddFileObject(name, filename string, file io.Reader) {
-	if filename == "" {
-		filename = name
-	}
-	this.AddFile(name, fileObject{name: name, filename: filename, reader: file})
-}
-
-func (this *Request) DelFile(name string) {
-	if this.files != nil {
-		delete(this.files, name)
-	}
-}
-
-func (this *Request) ResetFile() {
-	this.files = nil
+func (this *Request) SetFileForm(files FormFiles) {
+	this.files = files
 }
 
 func (this *Request) AddCookie(cookie *http.Cookie) {
@@ -197,10 +132,6 @@ func (this *Request) AddCookie(cookie *http.Cookie) {
 
 func (this *Request) SetCookies(cookies []*http.Cookie) {
 	this.cookies = cookies
-}
-
-func (this *Request) ResetCookies() {
-	this.cookies = nil
 }
 
 func (this *Request) Do(ctx context.Context) (*http.Response, error) {
@@ -228,7 +159,7 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 				return nil, err
 			}
 		}
-		for key, values := range this.params {
+		for key, values := range this.form {
 			for _, value := range values {
 				bodyWriter.WriteField(key, value)
 			}
@@ -240,8 +171,8 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 
 		this.SetContentType(ContentType(bodyWriter.FormDataContentType()))
 		body = bodyBuffer
-	} else if len(this.params) > 0 && !toQuery {
-		body = strings.NewReader(this.params.Encode())
+	} else if len(this.form) > 0 && !toQuery {
+		body = strings.NewReader(this.form.Encode())
 	}
 
 	var getBody func() (io.ReadCloser, error)
@@ -289,9 +220,9 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	req.GetBody = getBody
 
 	if toQuery {
-		for key, values := range this.params {
+		for key, values := range this.form {
 			for _, value := range values {
-				this.query.Add(key, value)
+				this.Query().Add(key, value)
 			}
 		}
 	}

@@ -6,6 +6,35 @@ import (
 	"os"
 )
 
+type FormFiles map[string]FormFile
+
+func (f FormFiles) AddFilePath(name, filename, filepath string) {
+	if filename == "" {
+		filename = name
+	}
+	f.Add(name, file{name: name, filename: filename, filepath: filepath})
+}
+
+func (f FormFiles) AddFileObject(name, filename string, file io.Reader) {
+	if filename == "" {
+		filename = name
+	}
+	f.Add(name, fileObject{name: name, filename: filename, reader: file})
+}
+
+func (f FormFiles) Add(name string, file FormFile) {
+	f[name] = file
+}
+
+func (f FormFiles) Del(name string) {
+	delete(f, name)
+}
+
+func (f FormFiles) Has(name string) bool {
+	_, ok := f[name]
+	return ok
+}
+
 type FormFile interface {
 	WriteTo(writer *multipart.Writer) error
 }

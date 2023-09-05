@@ -18,8 +18,8 @@ func main() {
 		}),
 	)
 
-	req.AddFilePath("file1", "1.jpg", "./1.jpg")
-	req.AddFilePath("file2", "2.png", "./2.png")
+	req.FileForm().AddFilePath("file1", "1.jpg", "./1.jpg")
+	req.FileForm().AddFilePath("file2", "2.png", "./2.png")
 
 	fmt.Println(req.Exec(context.Background()).Error())
 }
