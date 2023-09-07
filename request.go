@@ -250,35 +250,35 @@ func (this *Request) copy(rsp *http.Response, w io.Writer) error {
 func (this *Request) Exec(ctx context.Context) *Response {
 	rsp, err := this.Do(ctx)
 	if err != nil {
-		return &Response{Response: nil, data: nil, error: err}
+		return &Response{response: nil, data: nil, error: err}
 	}
 	defer rsp.Body.Close()
 
 	var w = bytes.NewBuffer(nil)
 
 	if err = this.copy(rsp, w); err != nil {
-		return &Response{Response: rsp, data: nil, error: err}
+		return &Response{response: rsp, data: nil, error: err}
 	}
 
-	return &Response{Response: rsp, data: w.Bytes(), error: err}
+	return &Response{response: rsp, data: w.Bytes(), error: err}
 }
 
 func (this *Request) Download(ctx context.Context, filepath string) *Response {
 	rsp, err := this.Do(ctx)
 	if err != nil {
-		return &Response{Response: nil, data: nil, error: err}
+		return &Response{response: nil, data: nil, error: err}
 	}
 	defer rsp.Body.Close()
 
 	w, err := os.Create(filepath)
 	if err != nil {
-		return &Response{Response: nil, data: nil, error: err}
+		return &Response{response: nil, data: nil, error: err}
 	}
 	defer w.Close()
 
 	if err = this.copy(rsp, w); err != nil {
-		return &Response{Response: rsp, data: nil, error: err}
+		return &Response{response: rsp, data: nil, error: err}
 	}
 
-	return &Response{Response: rsp, data: []byte(filepath), error: err}
+	return &Response{response: rsp, data: []byte(filepath), error: err}
 }

@@ -116,8 +116,8 @@ func TestNewRequest(t *testing.T) {
 			t.Fatalf("访问：%s-%s 期望: %d，实际：%d \n", test.method, test.path, test.statusCode, rsp.StatusCode())
 		}
 
-		if rsp.MustString() != test.response {
-			t.Fatalf("访问：%s-%s 期望: %s，实际：%s \n", test.method, test.path, test.response, rsp.MustString())
+		if rsp.String() != test.response {
+			t.Fatalf("访问：%s-%s 期望: %s，实际：%s \n", test.method, test.path, test.response, rsp.String())
 		}
 	}
 }
