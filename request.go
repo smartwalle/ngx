@@ -68,9 +68,6 @@ func NewRequest(method, target string, opts ...Option) *Request {
 		req.client = http.DefaultClient
 	}
 
-	if _, ok := req.header[kContentType]; !ok {
-		req.SetContentType(ContentTypeURLEncode)
-	}
 	return req
 }
 
@@ -228,7 +225,12 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	}
 
 	req.URL.RawQuery = this.query.Encode()
-	req.Header = this.header
+
+	var header = this.Header()
+	if _, ok := header[kContentType]; !ok {
+		header.Set(kContentType, string(ContentTypeURLEncode))
+	}
+	req.Header = header
 
 	for _, cookie := range this.cookies {
 		req.AddCookie(cookie)

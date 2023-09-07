@@ -60,3 +60,30 @@ func WithSend(fn func(total, chunk, finished uint64)) Option {
 		req.send = fn
 	}
 }
+
+func CloneValues(src url.Values) url.Values {
+	if src == nil {
+		return nil
+	}
+
+	nv := 0
+	for _, vv := range src {
+		nv += len(vv)
+	}
+	sv := make([]string, nv)
+	dst := make(url.Values, len(src))
+	for k, vv := range src {
+		if vv == nil {
+			dst[k] = nil
+			continue
+		}
+		n := copy(sv, vv)
+		dst[k] = sv[:n:n]
+		sv = sv[n:]
+	}
+	return dst
+}
+
+func CloneHeader(src http.Header) http.Header {
+	return src.Clone()
+}
