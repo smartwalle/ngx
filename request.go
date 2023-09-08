@@ -174,15 +174,15 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 		return nil, err
 	}
 
+	var query = this.Query()
 	if toQuery {
 		for key, values := range this.form {
 			for _, value := range values {
-				this.Query().Add(key, value)
+				query.Add(key, value)
 			}
 		}
 	}
-
-	req.URL.RawQuery = this.query.Encode()
+	req.URL.RawQuery = query.Encode()
 
 	var header = this.Header()
 	if _, ok := header[kContentType]; !ok {
