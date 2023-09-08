@@ -1,8 +1,10 @@
 package ngx_test
 
 import (
+	"bytes"
 	"context"
 	"github.com/smartwalle/ngx"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,13 +19,13 @@ var tests = []struct {
 	query      url.Values
 	form       url.Values
 	statusCode int
-	response   string
+	response   []byte
 }{
 	{
 		method:     http.MethodGet,
 		path:       "/get200",
 		statusCode: http.StatusOK,
-		response:   "Good",
+		response:   []byte("Good"),
 	},
 	{
 		method:     http.MethodGet,
@@ -31,7 +33,7 @@ var tests = []struct {
 		query:      url.Values{"q1": []string{"qv1"}},
 		form:       url.Values{"f1": []string{"fv1"}},
 		statusCode: http.StatusBadRequest,
-		response:   "Good",
+		response:   []byte("Good"),
 	},
 	{
 		method:     http.MethodGet,
@@ -40,13 +42,13 @@ var tests = []struct {
 		query:      url.Values{"q1": []string{"qv1"}},
 		form:       url.Values{"f1": []string{"fv1"}},
 		statusCode: http.StatusBadRequest,
-		response:   "Good",
+		response:   []byte("Good"),
 	},
 	{
 		method:     http.MethodGet,
 		path:       "/get400",
 		statusCode: http.StatusBadRequest,
-		response:   "Good",
+		response:   []byte("Good"),
 	},
 	{
 		method:     http.MethodPost,
@@ -54,7 +56,7 @@ var tests = []struct {
 		query:      url.Values{"q1": []string{"qv1"}},
 		form:       url.Values{"f1": []string{"fv1"}},
 		statusCode: http.StatusBadRequest,
-		response:   "Good",
+		response:   []byte("Good"),
 	},
 	{
 		method:     http.MethodPost,
@@ -63,7 +65,7 @@ var tests = []struct {
 		query:      url.Values{"q1": []string{"qv1"}},
 		form:       url.Values{"f1": []string{"fv1"}},
 		statusCode: http.StatusBadRequest,
-		response:   "Good",
+		response:   []byte("Good"),
 	},
 }
 
@@ -107,17 +109,21 @@ func TestNewRequest(t *testing.T) {
 		req.SetHeader(test.header)
 		req.SetForm(ngx.CloneValues(test.form))
 
-		var rsp = req.Exec(context.Background())
-		if rsp.Error() != nil {
-			t.Fatalf("访问：%s-%s 发生错误: %v", test.method, test.path, rsp.Error())
+		var rsp, err = req.Do(context.Background())
+		if err != nil {
+			t.Fatalf("访问：%s-%s 发生错误: %v", test.method, test.path, err)
+			continue
 		}
 
-		if rsp.StatusCode() != test.statusCode {
-			t.Fatalf("访问：%s-%s 期望: %d，实际：%d \n", test.method, test.path, test.statusCode, rsp.StatusCode())
+		if rsp.StatusCode != test.statusCode {
+			t.Fatalf("访问：%s-%s 期望: %d，实际：%d \n", test.method, test.path, test.statusCode, rsp.StatusCode)
 		}
 
-		if rsp.String() != test.response {
-			t.Fatalf("访问：%s-%s 期望: %s，实际：%s \n", test.method, test.path, test.response, rsp.String())
+		var body, _ = io.ReadAll(rsp.Body)
+		rsp.Body.Close()
+
+		if bytes.Compare(body, test.response) != 0 {
+			t.Fatalf("访问：%s-%s 期望: %s，实际：%s \n", test.method, test.path, string(test.response), string(body))
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package ngx
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -35,7 +36,7 @@ func WithQuery(query url.Values) Option {
 	}
 }
 
-func WithBody(body Body) Option {
+func WithBody(body io.Reader) Option {
 	return func(req *Request) {
 		req.body = body
 	}
@@ -44,20 +45,6 @@ func WithBody(body Body) Option {
 func WithCookies(cookies []*http.Cookie) Option {
 	return func(req *Request) {
 		req.cookies = cookies
-	}
-}
-
-// WithReceive 获取从服务端已接收数据大小
-func WithReceive(fn func(total, chunk, finished uint64)) Option {
-	return func(req *Request) {
-		req.receive = fn
-	}
-}
-
-// WithSend 获取向服务端已发送数据大小
-func WithSend(fn func(total, chunk, finished uint64)) Option {
-	return func(req *Request) {
-		req.send = fn
 	}
 }
 

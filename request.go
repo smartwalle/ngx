@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -35,14 +34,12 @@ const (
 )
 
 type Request struct {
-	body    Body
+	body    io.Reader
 	client  *http.Client
 	header  http.Header
 	query   url.Values
 	form    url.Values
 	files   FormFiles
-	receive func(total, chunk, finished uint64)
-	send    func(total, chunk, finished uint64)
 	Method  string
 	target  string
 	cookies []*http.Cookie
@@ -75,7 +72,7 @@ func (this *Request) SetContentType(contentType ContentType) {
 	this.Header().Set(kContentType, string(contentType))
 }
 
-func (this *Request) SetBody(body Body) {
+func (this *Request) SetBody(body io.Reader) {
 	this.body = body
 }
 
@@ -134,7 +131,7 @@ func (this *Request) SetCookies(cookies []*http.Cookie) {
 func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	var req *http.Request
 	var err error
-	var body Body
+	var body io.Reader
 	var toQuery bool
 
 	if this.Method == http.MethodGet ||
@@ -172,49 +169,10 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 		body = strings.NewReader(this.form.Encode())
 	}
 
-	var getBody func() (io.ReadCloser, error)
-	var contentLength int64
-
-	if body != nil {
-		switch v := body.(type) {
-		case *bytes.Buffer:
-			contentLength = int64(v.Len())
-			buf := v.Bytes()
-			getBody = func() (io.ReadCloser, error) {
-				r := bytes.NewReader(buf)
-				return io.NopCloser(NewReader(r, this.send)), nil
-			}
-		case *bytes.Reader:
-			contentLength = int64(v.Len())
-			snapshot := *v
-			getBody = func() (io.ReadCloser, error) {
-				r := snapshot
-				return io.NopCloser(NewReader(&r, this.send)), nil
-			}
-		case *strings.Reader:
-			contentLength = int64(v.Len())
-			snapshot := *v
-			getBody = func() (io.ReadCloser, error) {
-				r := snapshot
-				return io.NopCloser(NewReader(&r, this.send)), nil
-			}
-		default:
-		}
-
-		if getBody != nil && contentLength == 0 {
-			getBody = func() (io.ReadCloser, error) { return http.NoBody, nil }
-		}
-
-		body = NewReader(body, this.send)
-	}
-
 	req, err = http.NewRequestWithContext(ctx, this.Method, this.target, body)
 	if err != nil {
 		return nil, err
 	}
-
-	req.ContentLength = contentLength
-	req.GetBody = getBody
 
 	if toQuery {
 		for key, values := range this.form {
@@ -239,46 +197,6 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	return this.client.Do(req)
 }
 
-func (this *Request) copy(rsp *http.Response, w io.Writer) error {
-	var nWriter = NewWriter(w, uint64(rsp.ContentLength), this.receive)
-	if _, err := io.Copy(nWriter, rsp.Body); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (this *Request) Exec(ctx context.Context) *Response {
-	rsp, err := this.Do(ctx)
-	if err != nil {
-		return &Response{response: nil, data: nil, error: err}
-	}
-	defer rsp.Body.Close()
-
-	var w = bytes.NewBuffer(nil)
-
-	if err = this.copy(rsp, w); err != nil {
-		return &Response{response: rsp, data: nil, error: err}
-	}
-
-	return &Response{response: rsp, data: w.Bytes(), error: err}
-}
-
-func (this *Request) Download(ctx context.Context, filepath string) *Response {
-	rsp, err := this.Do(ctx)
-	if err != nil {
-		return &Response{response: nil, data: nil, error: err}
-	}
-	defer rsp.Body.Close()
-
-	w, err := os.Create(filepath)
-	if err != nil {
-		return &Response{response: nil, data: nil, error: err}
-	}
-	defer w.Close()
-
-	if err = this.copy(rsp, w); err != nil {
-		return &Response{response: rsp, data: nil, error: err}
-	}
-
-	return &Response{response: rsp, data: []byte(filepath), error: err}
+func (this *Request) Exec(ctx context.Context) (*http.Response, error) {
+	return this.Do(ctx)
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/smartwalle/ngx"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -124,9 +123,7 @@ func writeFile(req *http.Request, name string) error {
 		return err
 	}
 	defer nFile.Close()
-	if _, err = io.Copy(ngx.NewWriter(nFile, uint64(header.Size), func(total, chunk, finished uint64) {
-		fmt.Println(header.Filename, total, chunk, finished)
-	}), rFile); err != nil {
+	if _, err = io.Copy(nFile, rFile); err != nil {
 		return err
 	}
 
