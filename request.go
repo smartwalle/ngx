@@ -196,7 +196,3 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 
 	return this.client.Do(req)
 }
-
-func (this *Request) Exec(ctx context.Context) (*http.Response, error) {
-	return this.Do(ctx)
-}
