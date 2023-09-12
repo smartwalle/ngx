@@ -89,7 +89,7 @@ func NewServer(t *testing.T) *httptest.Server {
 				}
 
 				w.WriteHeader(test.statusCode)
-				w.Write([]byte(test.response))
+				w.Write(test.response)
 			}
 		}
 	}))
