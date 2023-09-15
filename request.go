@@ -34,15 +34,17 @@ const (
 )
 
 type Request struct {
-	body    io.Reader
-	client  *http.Client
-	header  http.Header
-	query   url.Values
-	form    url.Values
-	files   FormFiles
-	Method  string
-	target  string
-	cookies []*http.Cookie
+	body        io.Reader
+	client      *http.Client
+	header      http.Header
+	uQuery      url.Values
+	query       url.Values
+	form        url.Values
+	files       FormFiles
+	Method      string
+	target      string
+	contentType ContentType
+	cookies     []*http.Cookie
 }
 
 func NewRequest(method, target string, opts ...Option) *Request {
@@ -50,9 +52,10 @@ func NewRequest(method, target string, opts ...Option) *Request {
 	var req = &Request{}
 	req.Method = strings.ToUpper(method)
 	req.target = target
+	req.contentType = ContentTypeURLEncode
 
 	if nURL != nil {
-		req.query = nURL.Query()
+		req.uQuery = nURL.Query()
 	}
 
 	for _, opt := range opts {
@@ -68,8 +71,12 @@ func NewRequest(method, target string, opts ...Option) *Request {
 	return req
 }
 
+func (this *Request) TrimURLQuery() {
+	this.uQuery = nil
+}
+
 func (this *Request) SetContentType(contentType ContentType) {
-	this.Header().Set(kContentType, string(contentType))
+	this.contentType = contentType
 }
 
 func (this *Request) SetBody(body io.Reader) {
@@ -174,19 +181,29 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 		return nil, err
 	}
 
-	var query = this.Query()
+	var rawQuery = this.uQuery
+	if rawQuery == nil {
+		rawQuery = url.Values{}
+	}
+
+	for key, values := range this.query {
+		for _, value := range values {
+			rawQuery.Add(key, value)
+		}
+	}
+
 	if toQuery {
 		for key, values := range this.form {
 			for _, value := range values {
-				query.Add(key, value)
+				rawQuery.Add(key, value)
 			}
 		}
 	}
-	req.URL.RawQuery = query.Encode()
+	req.URL.RawQuery = rawQuery.Encode()
 
 	var header = this.Header()
 	if _, ok := header[kContentType]; !ok {
-		header.Set(kContentType, string(ContentTypeURLEncode))
+		header.Set(kContentType, string(this.contentType))
 	}
 	req.Header = header
 

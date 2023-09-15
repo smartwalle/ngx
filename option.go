@@ -28,11 +28,7 @@ func WithForm(form url.Values) Option {
 
 func WithQuery(query url.Values) Option {
 	return func(req *Request) {
-		for key, values := range query {
-			for _, value := range values {
-				req.Query().Add(key, value)
-			}
-		}
+		req.query = query
 	}
 }
 
