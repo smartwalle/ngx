@@ -121,6 +121,52 @@ var tests = []TestValue{
 		rBody:       []byte("Good"),
 	},
 	{
+		method:      http.MethodGet,
+		path:        "/content_type",
+		contentType: ngx.ContentTypeText,
+		rCode:       http.StatusBadRequest,
+		rBody:       []byte("Good"),
+		builder: func(t *testing.T, test TestValue, server *httptest.Server) *ngx.Request {
+			var req = ngx.NewRequest(test.method, server.URL+test.path+"?"+test.rawQuery)
+			// Header 中有设置 Content-Type 时，单独调用 SetContentType 方法设置的 Content-Type 将被忽略
+			req.Header().Set("Content-Type", string(ngx.ContentTypeURLEncode))
+			req.SetContentType(test.contentType)
+
+			req.SetQuery(ngx.CloneValues(test.query))
+			req.SetForm(ngx.CloneValues(test.form))
+			if len(test.body) > 0 {
+				req.SetBody(bytes.NewReader(test.body))
+			}
+			return req
+		},
+		handler: func(t *testing.T, test TestValue, w http.ResponseWriter, r *http.Request) {
+			r.ParseForm()
+
+			var f1 = url.Values{}
+			copyValues(f1, r.Form)
+
+			var f2 = url.Values{}
+			copyValues(f2, test.query)
+			copyValues(f2, test.form)
+
+			if r.Header.Get("Content-Type") != string(ngx.ContentTypeURLEncode) {
+				t.Fatalf("请求：%s-%s ContentType 不匹配, 期望: %s, 实际: %s \n", test.method, test.path, ngx.ContentTypeURLEncode, r.Header.Get("Content-Type"))
+			}
+
+			if f1.Encode() != f2.Encode() {
+				t.Fatalf("请求：%s-%s 参数不匹配, 期望: %s, 实际: %s \n", test.method, test.path, f2.Encode(), f1.Encode())
+			}
+
+			var body, _ = io.ReadAll(r.Body)
+			if bytes.Compare(body, test.body) != 0 {
+				t.Fatalf("请求：%s-%s Body 不匹配, 期望: %s，实际：%s \n", test.method, test.path, string(test.body), string(body))
+			}
+
+			w.WriteHeader(test.rCode)
+			w.Write(test.rBody)
+		},
+	},
+	{
 		method:      http.MethodPost,
 		path:        "/post200_1",
 		contentType: ngx.ContentTypeURLEncode,
