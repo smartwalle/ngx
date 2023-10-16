@@ -71,96 +71,96 @@ func NewRequest(method, target string, opts ...Option) *Request {
 	return req
 }
 
-func (this *Request) TrimURLQuery() {
-	this.uQuery = nil
+func (r *Request) TrimURLQuery() {
+	r.uQuery = nil
 }
 
-func (this *Request) SetContentType(contentType ContentType) {
-	this.contentType = contentType
+func (r *Request) SetContentType(contentType ContentType) {
+	r.contentType = contentType
 }
 
-func (this *Request) SetBody(body io.Reader) {
-	this.body = body
+func (r *Request) SetBody(body io.Reader) {
+	r.body = body
 }
 
-func (this *Request) SetForm(form url.Values) {
-	this.form = form
+func (r *Request) SetForm(form url.Values) {
+	r.form = form
 }
 
-func (this *Request) Form() url.Values {
-	if this.form == nil {
-		this.form = url.Values{}
+func (r *Request) Form() url.Values {
+	if r.form == nil {
+		r.form = url.Values{}
 	}
-	return this.form
+	return r.form
 }
 
-func (this *Request) SetQuery(query url.Values) {
-	this.query = query
+func (r *Request) SetQuery(query url.Values) {
+	r.query = query
 }
 
-func (this *Request) Query() url.Values {
-	if this.query == nil {
-		this.query = url.Values{}
+func (r *Request) Query() url.Values {
+	if r.query == nil {
+		r.query = url.Values{}
 	}
-	return this.query
+	return r.query
 }
 
-func (this *Request) SetHeader(header http.Header) {
-	this.header = header
+func (r *Request) SetHeader(header http.Header) {
+	r.header = header
 }
 
-func (this *Request) Header() http.Header {
-	if this.header == nil {
-		this.header = http.Header{}
+func (r *Request) Header() http.Header {
+	if r.header == nil {
+		r.header = http.Header{}
 	}
-	return this.header
+	return r.header
 }
 
-func (this *Request) FileForm() FormFiles {
-	if this.files == nil {
-		this.files = FormFiles{}
+func (r *Request) FileForm() FormFiles {
+	if r.files == nil {
+		r.files = FormFiles{}
 	}
-	return this.files
+	return r.files
 }
 
-func (this *Request) SetFileForm(files FormFiles) {
-	this.files = files
+func (r *Request) SetFileForm(files FormFiles) {
+	r.files = files
 }
 
-func (this *Request) AddCookie(cookie *http.Cookie) {
-	this.cookies = append(this.cookies, cookie)
+func (r *Request) AddCookie(cookie *http.Cookie) {
+	r.cookies = append(r.cookies, cookie)
 }
 
-func (this *Request) SetCookies(cookies []*http.Cookie) {
-	this.cookies = cookies
+func (r *Request) SetCookies(cookies []*http.Cookie) {
+	r.cookies = cookies
 }
 
-func (this *Request) Do(ctx context.Context) (*http.Response, error) {
+func (r *Request) Do(ctx context.Context) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var body io.Reader
 	var toQuery bool
 
-	if this.Method == http.MethodGet ||
-		this.Method == http.MethodTrace ||
-		this.Method == http.MethodOptions ||
-		this.Method == http.MethodHead ||
-		this.Method == http.MethodDelete {
+	if r.Method == http.MethodGet ||
+		r.Method == http.MethodTrace ||
+		r.Method == http.MethodOptions ||
+		r.Method == http.MethodHead ||
+		r.Method == http.MethodDelete {
 		toQuery = true
 	}
 
-	if this.body != nil {
-		body = this.body
-	} else if len(this.files) > 0 {
+	if r.body != nil {
+		body = r.body
+	} else if len(r.files) > 0 {
 		var bodyBuffer = &bytes.Buffer{}
 		var bodyWriter = multipart.NewWriter(bodyBuffer)
 
-		for _, f := range this.files {
+		for _, f := range r.files {
 			if err = f.WriteTo(bodyWriter); err != nil {
 				return nil, err
 			}
 		}
-		for key, values := range this.form {
+		for key, values := range r.form {
 			for _, value := range values {
 				bodyWriter.WriteField(key, value)
 			}
@@ -170,30 +170,30 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 			return nil, err
 		}
 
-		this.SetContentType(ContentType(bodyWriter.FormDataContentType()))
+		r.SetContentType(ContentType(bodyWriter.FormDataContentType()))
 		body = bodyBuffer
-	} else if len(this.form) > 0 && !toQuery {
-		body = strings.NewReader(this.form.Encode())
+	} else if len(r.form) > 0 && !toQuery {
+		body = strings.NewReader(r.form.Encode())
 	}
 
-	req, err = http.NewRequestWithContext(ctx, this.Method, this.target, body)
+	req, err = http.NewRequestWithContext(ctx, r.Method, r.target, body)
 	if err != nil {
 		return nil, err
 	}
 
-	var rawQuery = this.uQuery
+	var rawQuery = r.uQuery
 	if rawQuery == nil {
 		rawQuery = url.Values{}
 	}
 
-	for key, values := range this.query {
+	for key, values := range r.query {
 		for _, value := range values {
 			rawQuery.Add(key, value)
 		}
 	}
 
 	if toQuery {
-		for key, values := range this.form {
+		for key, values := range r.form {
 			for _, value := range values {
 				rawQuery.Add(key, value)
 			}
@@ -201,15 +201,15 @@ func (this *Request) Do(ctx context.Context) (*http.Response, error) {
 	}
 	req.URL.RawQuery = rawQuery.Encode()
 
-	var header = this.Header()
+	var header = r.Header()
 	if _, ok := header[kContentType]; !ok {
-		header.Set(kContentType, string(this.contentType))
+		header.Set(kContentType, string(r.contentType))
 	}
 	req.Header = header
 
-	for _, cookie := range this.cookies {
+	for _, cookie := range r.cookies {
 		req.AddCookie(cookie)
 	}
 
-	return this.client.Do(req)
+	return r.client.Do(req)
 }
