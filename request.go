@@ -153,7 +153,7 @@ func (r *Request) SetCookies(cookies []*http.Cookie) {
 	r.cookies = cookies
 }
 
-func (r *Request) Do(ctx context.Context) (*http.Response, error) {
+func (r *Request) Request(ctx context.Context) (*http.Request, error) {
 	var req *http.Request
 	var err error
 	var body io.Reader
@@ -228,6 +228,13 @@ func (r *Request) Do(ctx context.Context) (*http.Response, error) {
 	for _, cookie := range r.cookies {
 		req.AddCookie(cookie)
 	}
+	return req, nil
+}
 
+func (r *Request) Do(ctx context.Context) (*http.Response, error) {
+	var req, err = r.Request(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return r.client.Do(req)
 }
