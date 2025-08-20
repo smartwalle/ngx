@@ -42,7 +42,7 @@ type Request struct {
 	rawQuery    url.Values
 	query       url.Values
 	form        url.Values
-	files       FormFiles
+	files       FileForm
 	contentType ContentType
 	cookies     []*http.Cookie
 }
@@ -133,14 +133,14 @@ func (r *Request) Header() http.Header {
 }
 
 // SetFileForm 设置上传文件信息
-func (r *Request) SetFileForm(files FormFiles) {
+func (r *Request) SetFileForm(files FileForm) {
 	r.files = files
 }
 
 // FileForm 获取上传文件信息
-func (r *Request) FileForm() FormFiles {
+func (r *Request) FileForm() FileForm {
 	if r.files == nil {
-		r.files = FormFiles{}
+		r.files = FileForm{}
 	}
 	return r.files
 }
