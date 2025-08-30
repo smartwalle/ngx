@@ -9,17 +9,11 @@ import (
 type FileForm map[string]File
 
 func (f FileForm) AddFilePath(name, filename, filepath string) {
-	if filename == "" {
-		filename = name
-	}
-	f.Add(name, file{name: name, filename: filename, filepath: filepath})
+	f.Add(name, fileInfo{filename: filename, filepath: filepath})
 }
 
 func (f FileForm) AddFileObject(name, filename string, file io.Reader) {
-	if filename == "" {
-		filename = name
-	}
-	f.Add(name, fileObject{name: name, filename: filename, reader: file})
+	f.Add(name, fileObject{filename: filename, reader: file})
 }
 
 func (f FileForm) Add(name string, file File) {
@@ -36,46 +30,44 @@ func (f FileForm) Has(name string) bool {
 }
 
 type File interface {
-	WriteTo(writer *multipart.Writer) error
+	Write(name string, writer *multipart.Writer) error
 }
 
-type file struct {
-	name     string
+type fileInfo struct {
 	filename string
 	filepath string
 }
 
-func (f file) WriteTo(writer *multipart.Writer) error {
-	nFile, err := os.Open(f.filepath)
+func (f fileInfo) Write(name string, writer *multipart.Writer) error {
+	file, err := os.Open(f.filepath)
 	if err != nil {
 		return err
 	}
-	defer nFile.Close()
-	nWriter, err := writer.CreateFormFile(f.name, f.filename)
+	defer file.Close()
+	fileWriter, err := writer.CreateFormFile(name, f.filename)
 	if err != nil {
 		return err
 	}
-	if _, err = io.Copy(nWriter, nFile); err != nil {
+	if _, err = io.Copy(fileWriter, file); err != nil {
 		return err
 	}
 	return nil
 }
 
 type fileObject struct {
-	name     string
 	filename string
 	reader   io.Reader
 }
 
-func (f fileObject) WriteTo(writer *multipart.Writer) error {
+func (f fileObject) Write(name string, writer *multipart.Writer) error {
 	if f.reader == nil {
 		return nil
 	}
-	nWriter, err := writer.CreateFormFile(f.name, f.filename)
+	fileWriter, err := writer.CreateFormFile(name, f.filename)
 	if err != nil {
 		return err
 	}
-	if _, err = io.Copy(nWriter, f.reader); err != nil {
+	if _, err = io.Copy(fileWriter, f.reader); err != nil {
 		return err
 	}
 	return nil

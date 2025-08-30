@@ -42,7 +42,7 @@ type Request struct {
 	rawQuery    url.Values
 	query       url.Values
 	form        url.Values
-	files       FileForm
+	fileForm    FileForm
 	contentType ContentType
 	cookies     []*http.Cookie
 }
@@ -138,15 +138,15 @@ func (r *Request) Header() http.Header {
 
 // SetFileForm 设置上传文件信息
 func (r *Request) SetFileForm(files FileForm) {
-	r.files = files
+	r.fileForm = files
 }
 
 // FileForm 获取上传文件信息
 func (r *Request) FileForm() FileForm {
-	if r.files == nil {
-		r.files = FileForm{}
+	if r.fileForm == nil {
+		r.fileForm = FileForm{}
 	}
-	return r.files
+	return r.fileForm
 }
 
 func (r *Request) AddCookie(cookie *http.Cookie) {
@@ -171,27 +171,28 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 
 	if r.body != nil {
 		body = r.body
-	} else if len(r.files) > 0 {
-		var bodyBuffer = &bytes.Buffer{}
-		var bodyWriter = multipart.NewWriter(bodyBuffer)
+	} else if len(r.fileForm) > 0 {
+		var multiBuffer = &bytes.Buffer{}
+		var multiWriter = multipart.NewWriter(multiBuffer)
 
-		for _, f := range r.files {
-			if err = f.WriteTo(bodyWriter); err != nil {
+		for key, file := range r.fileForm {
+			if err = file.Write(key, multiWriter); err != nil {
 				return nil, err
 			}
 		}
 		for key, values := range r.form {
 			for _, value := range values {
-				bodyWriter.WriteField(key, value)
+				if err = multiWriter.WriteField(key, value); err != nil {
+					return nil, err
+				}
 			}
 		}
-
-		if err = bodyWriter.Close(); err != nil {
+		if err = multiWriter.Close(); err != nil {
 			return nil, err
 		}
+		r.SetContentType(ContentType(multiWriter.FormDataContentType()))
 
-		r.SetContentType(ContentType(bodyWriter.FormDataContentType()))
-		body = bodyBuffer
+		body = multiBuffer
 	} else if len(r.form) > 0 && !useRawQuery {
 		body = strings.NewReader(r.form.Encode())
 	}
