@@ -283,7 +283,7 @@ func copyValues(dst, src url.Values) {
 	}
 }
 
-func TestNewRequest(t *testing.T) {
+func TestRequest_Do(t *testing.T) {
 	var server = NewServer(t)
 
 	for _, test := range tests {

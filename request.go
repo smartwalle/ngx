@@ -71,7 +71,11 @@ func NewRequest(method, rawURL string, opts ...Option) *Request {
 	return req
 }
 
-// TrimURLQuery 清除 URL 中原有的查询参数信息
+func (r *Request) SetClient(client *http.Client) {
+	r.client = client
+}
+
+// TrimURLQuery 清除 URL 中原有的 Query 参数信息
 func (r *Request) TrimURLQuery() {
 	r.rawQuery = nil
 }
@@ -83,7 +87,7 @@ func (r *Request) SetContentType(contentType ContentType) {
 
 // SetBody 设置请求体
 //
-// 如果同时设置了 Body 和 Form，Body 的优先级则高于 Form，Form 中的信息将被舍弃。
+// 如果同时设置了 Body 和 Form(File)，Body 的优先级则高于 Form(File)，Form(File) 中的信息将被舍弃。
 func (r *Request) SetBody(body io.Reader) {
 	r.body = body
 }
@@ -104,14 +108,14 @@ func (r *Request) Form() url.Values {
 	return r.form
 }
 
-// SetQuery 设置查询参数信息
+// SetQuery 设置 Query 参数信息
 //
 // 该参数将拼接在 URL 的查询参数中。
 func (r *Request) SetQuery(query url.Values) {
 	r.query = query
 }
 
-// Query 获取查询参数信息
+// Query 获取 Query 参数信息
 func (r *Request) Query() url.Values {
 	if r.query == nil {
 		r.query = url.Values{}
@@ -153,18 +157,16 @@ func (r *Request) SetCookies(cookies []*http.Cookie) {
 	r.cookies = cookies
 }
 
-func (r *Request) Request(ctx context.Context) (*http.Request, error) {
-	var req *http.Request
-	var err error
+func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	var body io.Reader
-	var mergeToRawQuery bool
+	var useRawQuery bool
 
 	if r.method == http.MethodGet ||
 		r.method == http.MethodTrace ||
 		r.method == http.MethodOptions ||
 		r.method == http.MethodHead ||
 		r.method == http.MethodDelete {
-		mergeToRawQuery = true
+		useRawQuery = true
 	}
 
 	if r.body != nil {
@@ -190,7 +192,7 @@ func (r *Request) Request(ctx context.Context) (*http.Request, error) {
 
 		r.SetContentType(ContentType(bodyWriter.FormDataContentType()))
 		body = bodyBuffer
-	} else if len(r.form) > 0 && !mergeToRawQuery {
+	} else if len(r.form) > 0 && !useRawQuery {
 		body = strings.NewReader(r.form.Encode())
 	}
 
@@ -210,7 +212,7 @@ func (r *Request) Request(ctx context.Context) (*http.Request, error) {
 		}
 	}
 
-	if mergeToRawQuery {
+	if useRawQuery {
 		for key, values := range r.form {
 			for _, value := range values {
 				rawQuery.Add(key, value)
@@ -236,5 +238,9 @@ func (r *Request) Do(ctx context.Context) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.client.Do(req)
+	var client = r.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	return client.Do(req)
 }
