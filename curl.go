@@ -2,32 +2,25 @@ package ngx
 
 import (
 	"bytes"
+	"github.com/smartwalle/ngx/curl"
 	"io"
 	"net/http"
-	"strings"
 )
 
 func CURL(req *http.Request) (string, error) {
-	var buffer = &bytes.Buffer{}
+	var cmd = curl.New(req.Method, req.URL.String())
 
-	buffer.WriteString("curl")
-	// Method
-	buffer.WriteString(" --request ")
-	buffer.WriteString(req.Method)
-
-	// URL
-	buffer.WriteString(" ")
-	escape(buffer, req.URL.String())
-
-	// Header
 	for key, values := range req.Header {
 		for _, value := range values {
-			buffer.WriteString(" --header ")
-			escape(buffer, key, ":", value)
+			cmd.Header(key, value)
 		}
 	}
 
-	// Body
+	var userAgent = req.UserAgent()
+	if userAgent != "" {
+		cmd.UserAgent(userAgent)
+	}
+
 	var err error
 	var body io.Reader
 
@@ -40,17 +33,7 @@ func CURL(req *http.Request) (string, error) {
 		return "", err
 	}
 	if bodyBuffer.Len() > 0 {
-		buffer.WriteString(" --data ")
-		escape(buffer, bodyBuffer.String())
+		cmd.Data(bodyBuffer.String())
 	}
-
-	return buffer.String(), nil
-}
-
-func escape(buffer *bytes.Buffer, values ...string) {
-	buffer.WriteString("'")
-	for _, value := range values {
-		buffer.WriteString(strings.Replace(value, "'", "'\\''", -1))
-	}
-	buffer.WriteString("'")
+	return cmd.Encode(), nil
 }
