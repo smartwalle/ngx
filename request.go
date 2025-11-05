@@ -38,11 +38,11 @@ type Request struct {
 	url         *url.URL
 	Client      *http.Client
 	Header      http.Header
-	Body        io.Reader  // 如果同时设置了 Body 和 Form(FileForm)，则 Body 的优先级高于 Form(FileForm)，且 Form(FileForm) 中的信息将被舍弃。
-	Query       url.Values // 该参数将拼接在 URL 的查询参数中。
-	Form        url.Values // 对于 POST 请求，该参数将通过 Body 传递；对于 GET 一类的请求，该参数将和 Query 合并之后，拼接在 URL 的查询参数中。
-	FileForm    FileForm   // 上传文件。
-	ContentType ContentType
+	Body        io.Reader   // 如果同时设置了 Body 和 Form(FileForm)，则 Body 的优先级高于 Form(FileForm)，且 Form(FileForm) 中的信息将被舍弃。
+	Query       url.Values  // 该参数将拼接在 URL 的查询参数中。
+	Form        url.Values  // 对于 POST 请求，该参数将通过 Body 传递；对于 GET 一类的请求，该参数将和 Query 合并之后，拼接在 URL 的查询参数中。
+	FileForm    FileForm    // 上传文件。
+	ContentType ContentType // 如果设置了 ContentType，则会覆盖 Header 中的 Content-Type 值。
 	Cookies     []*http.Cookie
 }
 
@@ -142,7 +142,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	if header == nil {
 		header = http.Header{}
 	}
-	if _, ok := header[kContentType]; !ok {
+	if r.ContentType != "" {
 		header.Set(kContentType, string(r.ContentType))
 	}
 	req.Header = header

@@ -148,8 +148,8 @@ var tests = []TestValue{
 			copyValues(f2, test.query)
 			copyValues(f2, test.form)
 
-			if r.Header.Get("Content-Type") != string(ngx.ContentTypeURLEncode) {
-				t.Fatalf("请求：%s-%s ContentType 不匹配, 期望: %s, 实际: %s \n", test.method, test.path, ngx.ContentTypeURLEncode, r.Header.Get("Content-Type"))
+			if r.Header.Get("Content-Type") != string(ngx.ContentTypeText) {
+				t.Fatalf("请求：%s-%s ContentType 不匹配, 期望: %s, 实际: %s \n", test.method, test.path, ngx.ContentTypeText, r.Header.Get("Content-Type"))
 			}
 
 			if f1.Encode() != f2.Encode() {
@@ -262,7 +262,7 @@ func defaultHandler(t *testing.T, test TestValue, w http.ResponseWriter, r *http
 	}
 
 	var body, _ = io.ReadAll(r.Body)
-	if bytes.Compare(body, test.body) != 0 {
+	if !bytes.Equal(body, test.body) {
 		t.Fatalf("请求：%s-%s Body 不匹配, 期望: %s，实际：%s \n", test.method, test.path, string(test.body), string(body))
 	}
 
