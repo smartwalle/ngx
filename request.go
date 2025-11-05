@@ -34,153 +34,74 @@ const (
 )
 
 type Request struct {
-	client      *http.Client
-	header      http.Header
-	body        io.Reader
 	method      string
-	rawURL      string
-	rawQuery    url.Values
-	query       url.Values
-	form        url.Values
-	fileForm    FileForm
-	contentType ContentType
-	cookies     []*http.Cookie
+	url         *url.URL
+	Client      *http.Client
+	Header      http.Header
+	Body        io.Reader  // 如果同时设置了 Body 和 Form(FileForm)，则 Body 的优先级高于 Form(FileForm)，且 Form(FileForm) 中的信息将被舍弃。
+	Query       url.Values // 该参数将拼接在 URL 的查询参数中。
+	Form        url.Values // 对于 POST 请求，该参数将通过 Body 传递；对于 GET 一类的请求，该参数将和 Query 合并之后，拼接在 URL 的查询参数中。
+	FileForm    FileForm   // 上传文件。
+	ContentType ContentType
+	Cookies     []*http.Cookie
 }
 
 func NewRequest(method, rawURL string, opts ...Option) *Request {
 	var nURL, _ = url.Parse(rawURL)
 	var req = &Request{}
 	req.method = strings.ToUpper(method)
-	req.rawURL = rawURL
-	req.contentType = ContentTypeURLEncode
+	req.url = nURL
+	req.ContentType = ContentTypeURLEncode
+	req.Header = http.Header{}
+	req.Query = nURL.Query()
+	req.Form = url.Values{}
+	req.FileForm = FileForm{}
 
-	if nURL != nil {
-		req.rawQuery = nURL.Query()
-	}
-
+	req.url.RawQuery = ""
 	for _, opt := range opts {
 		if opt != nil {
 			opt(req)
 		}
 	}
-
-	if req.client == nil {
-		req.client = http.DefaultClient
-	}
-
 	return req
 }
 
-func (r *Request) SetClient(client *http.Client) {
-	r.client = client
-}
-
-// TrimURLQuery 清除 URL 中原有的 Query 参数信息
-func (r *Request) TrimURLQuery() {
-	r.rawQuery = nil
-}
-
-// SetContentType 设置 Content-Type
-func (r *Request) SetContentType(contentType ContentType) {
-	r.contentType = contentType
-}
-
-// SetBody 设置请求体
-//
-// 如果同时设置了 Body 和 Form(File)，Body 的优先级则高于 Form(File)，Form(File) 中的信息将被舍弃。
-func (r *Request) SetBody(body io.Reader) {
-	r.body = body
-}
-
-// SetForm 设置请求参数（表单）
-func (r *Request) SetForm(form url.Values) {
-	r.form = form
-}
-
-// Form 获取请求参数（表单）
-//
-// 对于 POST 请求，该参数将通过 Body 传递；
-// 对于 GET 一类的请求，该参数将拼接在 URL 的查询参数中。
-func (r *Request) Form() url.Values {
-	if r.form == nil {
-		r.form = url.Values{}
-	}
-	return r.form
-}
-
-// SetQuery 设置 Query 参数信息
-//
-// 该参数将拼接在 URL 的查询参数中。
-func (r *Request) SetQuery(query url.Values) {
-	r.query = query
-}
-
-// Query 获取 Query 参数信息
-func (r *Request) Query() url.Values {
-	if r.query == nil {
-		r.query = url.Values{}
-	}
-	return r.query
-}
-
-// SetHeader 设置请求头
-func (r *Request) SetHeader(header http.Header) {
-	r.header = header
-}
-
-// Header 获取请求头
-func (r *Request) Header() http.Header {
-	if r.header == nil {
-		r.header = http.Header{}
-	}
-	return r.header
-}
-
-// SetFileForm 设置上传文件信息
-func (r *Request) SetFileForm(files FileForm) {
-	r.fileForm = files
-}
-
-// FileForm 获取上传文件信息
-func (r *Request) FileForm() FileForm {
-	if r.fileForm == nil {
-		r.fileForm = FileForm{}
-	}
-	return r.fileForm
+func (r *Request) JoinPath(elems ...string) {
+	r.url = r.url.JoinPath(elems...)
 }
 
 func (r *Request) AddCookie(cookie *http.Cookie) {
-	r.cookies = append(r.cookies, cookie)
+	r.Cookies = append(r.Cookies, cookie)
 }
 
 func (r *Request) SetCookies(cookies []*http.Cookie) {
-	r.cookies = cookies
+	r.Cookies = cookies
 }
 
 func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	var body io.Reader
-	var useRawQuery bool
+	var forceQuery bool
 
 	if r.method == http.MethodGet ||
 		r.method == http.MethodTrace ||
 		r.method == http.MethodOptions ||
 		r.method == http.MethodHead ||
 		r.method == http.MethodDelete {
-		useRawQuery = true
+		forceQuery = true
 	}
 
-	if r.body != nil {
-		body = r.body
-	} else if len(r.fileForm) > 0 {
+	if r.Body != nil {
+		body = r.Body
+	} else if len(r.FileForm) > 0 {
 		var multiBuffer = &bytes.Buffer{}
 		var multiWriter = multipart.NewWriter(multiBuffer)
 
-		for key, file := range r.fileForm {
+		for key, file := range r.FileForm {
 			if err = file.Write(key, multiWriter); err != nil {
 				return nil, err
 			}
 		}
-		for key, values := range r.form {
+		for key, values := range r.Form {
 			for _, value := range values {
 				if err = multiWriter.WriteField(key, value); err != nil {
 					return nil, err
@@ -190,45 +111,43 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		if err = multiWriter.Close(); err != nil {
 			return nil, err
 		}
-		r.SetContentType(ContentType(multiWriter.FormDataContentType()))
+		r.ContentType = ContentType(multiWriter.FormDataContentType())
 
 		body = multiBuffer
-	} else if len(r.form) > 0 && !useRawQuery {
-		body = strings.NewReader(r.form.Encode())
+	} else if len(r.Form) > 0 && !forceQuery {
+		body = strings.NewReader(r.Form.Encode())
 	}
 
-	req, err = http.NewRequestWithContext(ctx, r.method, r.rawURL, body)
+	req, err = http.NewRequestWithContext(ctx, r.method, r.url.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
-	var rawQuery = CloneValues(r.rawQuery)
-	if rawQuery == nil {
-		rawQuery = url.Values{}
-	}
-
-	for key, values := range r.query {
-		for _, value := range values {
-			rawQuery.Add(key, value)
+	var rawQuery = r.Query
+	if forceQuery {
+		if rawQuery == nil {
+			rawQuery = url.Values{}
 		}
-	}
-
-	if useRawQuery {
-		for key, values := range r.form {
+		for key, values := range r.Form {
 			for _, value := range values {
 				rawQuery.Add(key, value)
 			}
 		}
 	}
-	req.URL.RawQuery = rawQuery.Encode()
+	if len(rawQuery) > 0 {
+		req.URL.RawQuery = rawQuery.Encode()
+	}
 
-	var header = r.Header()
+	var header = r.Header
+	if header == nil {
+		header = http.Header{}
+	}
 	if _, ok := header[kContentType]; !ok {
-		header.Set(kContentType, string(r.contentType))
+		header.Set(kContentType, string(r.ContentType))
 	}
 	req.Header = header
 
-	for _, cookie := range r.cookies {
+	for _, cookie := range r.Cookies {
 		req.AddCookie(cookie)
 	}
 	return req, nil
@@ -239,7 +158,7 @@ func (r *Request) Do(ctx context.Context) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	var client = r.client
+	var client = r.Client
 	if client == nil {
 		client = http.DefaultClient
 	}

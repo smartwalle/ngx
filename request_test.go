@@ -79,14 +79,13 @@ var tests = []TestValue{
 		rBody:       []byte("Good"),
 		builder: func(t *testing.T, test TestValue, server *httptest.Server) *ngx.Request {
 			var req = ngx.NewRequest(test.method, server.URL+test.path+"?"+test.rawQuery)
-			req.TrimURLQuery()
-			req.SetHeader(test.header)
-			req.SetContentType(test.contentType)
+			req.Header = test.header
+			req.ContentType = test.contentType
 
-			req.SetQuery(ngx.CloneValues(test.query))
-			req.SetForm(ngx.CloneValues(test.form))
+			req.Query = ngx.CloneValues(test.query)
+			req.Form = ngx.CloneValues(test.form)
 			if len(test.body) > 0 {
-				req.SetBody(bytes.NewReader(test.body))
+				req.Body = bytes.NewReader(test.body)
 			}
 			return req
 		},
@@ -129,13 +128,13 @@ var tests = []TestValue{
 		builder: func(t *testing.T, test TestValue, server *httptest.Server) *ngx.Request {
 			var req = ngx.NewRequest(test.method, server.URL+test.path+"?"+test.rawQuery)
 			// Header 中有设置 Content-Type 时，单独调用 SetContentType 方法设置的 Content-Type 将被忽略
-			req.Header().Set("Content-Type", string(ngx.ContentTypeURLEncode))
-			req.SetContentType(test.contentType)
+			req.Header.Set("Content-Type", string(ngx.ContentTypeURLEncode))
+			req.ContentType = test.contentType
 
-			req.SetQuery(ngx.CloneValues(test.query))
-			req.SetForm(ngx.CloneValues(test.form))
+			req.Query = ngx.CloneValues(test.query)
+			req.Form = ngx.CloneValues(test.form)
 			if len(test.body) > 0 {
-				req.SetBody(bytes.NewReader(test.body))
+				req.Body = bytes.NewReader(test.body)
 			}
 			return req
 		},
@@ -223,13 +222,21 @@ var tests = []TestValue{
 
 func defaultRequest(t *testing.T, test TestValue, server *httptest.Server) *ngx.Request {
 	var req = ngx.NewRequest(test.method, server.URL+test.path+"?"+test.rawQuery)
-	req.SetHeader(test.header)
-	req.SetContentType(test.contentType)
+	req.Header = test.header
+	req.ContentType = test.contentType
 
-	req.SetQuery(ngx.CloneValues(test.query))
-	req.SetForm(ngx.CloneValues(test.form))
+	for key, values := range test.query {
+		for _, value := range values {
+			req.Query.Add(key, value)
+		}
+	}
+	for key, values := range test.form {
+		for _, value := range values {
+			req.Form.Add(key, value)
+		}
+	}
 	if len(test.body) > 0 {
-		req.SetBody(bytes.NewReader(test.body))
+		req.Body = bytes.NewReader(test.body)
 	}
 	return req
 }

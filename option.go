@@ -10,37 +10,49 @@ type Option func(req *Request)
 
 func WithClient(client *http.Client) Option {
 	return func(req *Request) {
-		req.client = client
+		req.Client = client
 	}
 }
 
 func WithHeader(header http.Header) Option {
 	return func(req *Request) {
-		req.header = header
+		for key, values := range header {
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
 	}
 }
 
 func WithForm(form url.Values) Option {
 	return func(req *Request) {
-		req.form = form
+		for key, values := range form {
+			for _, value := range values {
+				req.Form.Add(key, value)
+			}
+		}
 	}
 }
 
 func WithQuery(query url.Values) Option {
 	return func(req *Request) {
-		req.query = query
+		for key, values := range query {
+			for _, value := range values {
+				req.Query.Add(key, value)
+			}
+		}
 	}
 }
 
 func WithBody(body io.Reader) Option {
 	return func(req *Request) {
-		req.body = body
+		req.Body = body
 	}
 }
 
 func WithCookies(cookies []*http.Cookie) Option {
 	return func(req *Request) {
-		req.cookies = cookies
+		req.Cookies = cookies
 	}
 }
 
