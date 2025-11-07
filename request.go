@@ -92,12 +92,12 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	if r.Body != nil {
 		bodyEncoder = r.Body
 	} else if len(r.FileForm) > 0 {
-		bodyEncoder = multiEncoder{}
+		bodyEncoder = multiEncoder()
 	} else if len(r.Form) > 0 && !forceQuery {
-		bodyEncoder = formEncoder{}
+		bodyEncoder = formEncoder()
 	}
 	if bodyEncoder != nil {
-		body, err = bodyEncoder.Encode(r)
+		body, err = bodyEncoder(r)
 		if err != nil {
 			return nil, err
 		}
