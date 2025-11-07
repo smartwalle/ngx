@@ -46,7 +46,7 @@ func WithQuery(query url.Values) Option {
 
 func WithBody(body io.Reader) Option {
 	return func(req *Request) {
-		req.Body = body
+		req.Body = Body(body)
 	}
 }
 

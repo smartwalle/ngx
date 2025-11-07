@@ -85,7 +85,7 @@ var tests = []TestValue{
 			req.Query = ngx.CloneValues(test.query)
 			req.Form = ngx.CloneValues(test.form)
 			if len(test.body) > 0 {
-				req.Body = bytes.NewReader(test.body)
+				req.Body = ngx.Body(bytes.NewReader(test.body))
 			}
 			return req
 		},
@@ -134,7 +134,7 @@ var tests = []TestValue{
 			req.Query = ngx.CloneValues(test.query)
 			req.Form = ngx.CloneValues(test.form)
 			if len(test.body) > 0 {
-				req.Body = bytes.NewReader(test.body)
+				req.Body = ngx.Body(bytes.NewReader(test.body))
 			}
 			return req
 		},
@@ -236,7 +236,7 @@ func defaultRequest(t *testing.T, test TestValue, server *httptest.Server) *ngx.
 		}
 	}
 	if len(test.body) > 0 {
-		req.Body = bytes.NewReader(test.body)
+		req.Body = ngx.Body(bytes.NewReader(test.body))
 	}
 	return req
 }

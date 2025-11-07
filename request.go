@@ -1,10 +1,8 @@
 package ngx
 
 import (
-	"bytes"
 	"context"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,7 +36,7 @@ type Request struct {
 	url         *url.URL
 	Client      *http.Client
 	Header      http.Header
-	Body        io.Reader   // 如果同时设置了 Body 和 Form(FileForm)，则 Body 的优先级高于 Form(FileForm)，且 Form(FileForm) 中的信息将被舍弃。
+	Body        BodyEncoder // 如果同时设置了 Body 和 Form(FileForm)，则 Body 的优先级高于 Form(FileForm)，且 Form(FileForm) 中的信息将被舍弃。
 	Query       url.Values  // 该参数将拼接在 URL 的查询参数中。
 	Form        url.Values  // 对于 POST 请求，该参数将通过 Body 传递；对于 GET 一类的请求，该参数将和 Query 合并之后，拼接在 URL 的查询参数中。
 	FileForm    FileForm    // 上传文件。
@@ -90,32 +88,19 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		forceQuery = true
 	}
 
+	var bodyEncoder BodyEncoder
 	if r.Body != nil {
-		body = r.Body
+		bodyEncoder = r.Body
 	} else if len(r.FileForm) > 0 {
-		var multiBuffer = &bytes.Buffer{}
-		var multiWriter = multipart.NewWriter(multiBuffer)
-
-		for key, file := range r.FileForm {
-			if err = file.Write(key, multiWriter); err != nil {
-				return nil, err
-			}
-		}
-		for key, values := range r.Form {
-			for _, value := range values {
-				if err = multiWriter.WriteField(key, value); err != nil {
-					return nil, err
-				}
-			}
-		}
-		if err = multiWriter.Close(); err != nil {
+		bodyEncoder = multiEncoder{}
+	} else if len(r.Form) > 0 && !forceQuery {
+		bodyEncoder = formEncoder{}
+	}
+	if bodyEncoder != nil {
+		body, err = bodyEncoder.Encode(r)
+		if err != nil {
 			return nil, err
 		}
-		r.ContentType = ContentType(multiWriter.FormDataContentType())
-
-		body = multiBuffer
-	} else if len(r.Form) > 0 && !forceQuery {
-		body = strings.NewReader(r.Form.Encode())
 	}
 
 	req, err = http.NewRequestWithContext(ctx, r.method, r.url.String(), body)
