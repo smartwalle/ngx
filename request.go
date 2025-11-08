@@ -108,7 +108,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		return nil, err
 	}
 
-	var rawQuery = r.Query
+	var rawQuery = CloneValues(r.Query)
 	if forceQuery {
 		if rawQuery == nil {
 			rawQuery = url.Values{}
@@ -123,7 +123,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		req.URL.RawQuery = rawQuery.Encode()
 	}
 
-	var header = r.Header
+	var header = CloneHeader(r.Header)
 	if header == nil {
 		header = http.Header{}
 	}
