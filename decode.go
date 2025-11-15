@@ -14,7 +14,7 @@ func JSONDecoder(v interface{}) BodyDecoder {
 		if resp.StatusCode == http.StatusNoContent || resp.ContentLength == 0 {
 			return io.EOF
 		}
-		return json.NewDecoder(resp.Body).Decode(&v)
+		return json.NewDecoder(resp.Body).Decode(v)
 	}
 }
 
