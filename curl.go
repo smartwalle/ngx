@@ -2,9 +2,10 @@ package ngx
 
 import (
 	"bytes"
-	"github.com/smartwalle/ngx/curl"
 	"io"
 	"net/http"
+
+	"github.com/smartwalle/ngx/curl"
 )
 
 func CURL(req *http.Request) (string, error) {

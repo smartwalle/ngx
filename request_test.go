@@ -3,12 +3,13 @@ package ngx_test
 import (
 	"bytes"
 	"context"
-	"github.com/smartwalle/ngx"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/smartwalle/ngx"
 )
 
 type TestValue struct {
@@ -128,7 +129,7 @@ var tests = []TestValue{
 		builder: func(t *testing.T, test TestValue, server *httptest.Server) *ngx.Request {
 			var req = ngx.NewRequest(test.method, server.URL+test.path+"?"+test.rawQuery)
 			// Header 中有设置 Content-Type 时，单独调用 SetContentType 方法设置的 Content-Type 将被忽略
-			req.Header.Set("Content-Type", string(ngx.ContentTypeURLEncode))
+			req.Header.Set("Content-Type", ngx.ContentTypeURLEncode)
 			req.ContentType = test.contentType
 
 			req.Query = ngx.CloneValues(test.query)
@@ -148,7 +149,7 @@ var tests = []TestValue{
 			copyValues(f2, test.query)
 			copyValues(f2, test.form)
 
-			if r.Header.Get("Content-Type") != string(ngx.ContentTypeText) {
+			if r.Header.Get("Content-Type") != ngx.ContentTypeText {
 				t.Fatalf("请求：%s-%s ContentType 不匹配, 期望: %s, 实际: %s \n", test.method, test.path, ngx.ContentTypeText, r.Header.Get("Content-Type"))
 			}
 
@@ -253,7 +254,7 @@ func defaultHandler(t *testing.T, test TestValue, w http.ResponseWriter, r *http
 	copyValues(f2, test.query)
 	copyValues(f2, test.form)
 
-	if r.Header.Get("Content-Type") != string(test.contentType) {
+	if r.Header.Get("Content-Type") != test.contentType {
 		t.Fatalf("请求：%s-%s ContentType 不匹配, 期望: %s, 实际: %s \n", test.method, test.path, test.contentType, r.Header.Get("Content-Type"))
 	}
 

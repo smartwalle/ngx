@@ -128,7 +128,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		header = http.Header{}
 	}
 	if r.ContentType != "" {
-		header.Set(kContentType, string(r.ContentType))
+		header.Set(kContentType, r.ContentType)
 	}
 	req.Header = header
 

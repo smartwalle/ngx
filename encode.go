@@ -46,7 +46,7 @@ func multiEncoder() BodyEncoder {
 		if err := multiWriter.Close(); err != nil {
 			return nil, err
 		}
-		req.ContentType = ContentType(multiWriter.FormDataContentType())
+		req.ContentType = multiWriter.FormDataContentType()
 		return multiBuffer, nil
 	}
 }
