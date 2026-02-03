@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type ContentType string
+type ContentType = string
 
 const kContentType = "Content-Type"
 
