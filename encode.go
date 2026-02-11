@@ -31,7 +31,7 @@ func multiEncoder() BodyEncoder {
 	return func(req *Request) (io.Reader, error) {
 		var multiBuffer = &bytes.Buffer{}
 		var multiWriter = multipart.NewWriter(multiBuffer)
-		for key, file := range req.FileForm {
+		for key, file := range req.File {
 			if err := file.Write(key, multiWriter); err != nil {
 				return nil, err
 			}

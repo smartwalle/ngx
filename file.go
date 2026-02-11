@@ -8,29 +8,29 @@ import (
 
 type FileForm map[string]File
 
-func (f FileForm) AddFilePath(name, filename, filepath string) {
-	f.Add(name, fileInfo{filename: filename, filepath: filepath})
+func (f FileForm) AddFile(key, filename, filepath string) {
+	f.Add(key, fileInfo{filename: filename, filepath: filepath})
 }
 
-func (f FileForm) AddFileObject(name, filename string, file io.Reader) {
-	f.Add(name, fileObject{filename: filename, reader: file})
+func (f FileForm) AddObject(key, filename string, file io.Reader) {
+	f.Add(key, fileObject{filename: filename, reader: file})
 }
 
-func (f FileForm) Add(name string, file File) {
-	f[name] = file
+func (f FileForm) Add(key string, file File) {
+	f[key] = file
 }
 
-func (f FileForm) Del(name string) {
-	delete(f, name)
+func (f FileForm) Del(key string) {
+	delete(f, key)
 }
 
-func (f FileForm) Has(name string) bool {
-	_, ok := f[name]
+func (f FileForm) Has(key string) bool {
+	_, ok := f[key]
 	return ok
 }
 
 type File interface {
-	Write(name string, writer *multipart.Writer) error
+	Write(key string, writer *multipart.Writer) error
 }
 
 type fileInfo struct {
@@ -38,13 +38,13 @@ type fileInfo struct {
 	filepath string
 }
 
-func (f fileInfo) Write(name string, writer *multipart.Writer) error {
+func (f fileInfo) Write(key string, writer *multipart.Writer) error {
 	file, err := os.Open(f.filepath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	fileWriter, err := writer.CreateFormFile(name, f.filename)
+	fileWriter, err := writer.CreateFormFile(key, f.filename)
 	if err != nil {
 		return err
 	}
@@ -59,11 +59,11 @@ type fileObject struct {
 	reader   io.Reader
 }
 
-func (f fileObject) Write(name string, writer *multipart.Writer) error {
+func (f fileObject) Write(key string, writer *multipart.Writer) error {
 	if f.reader == nil {
 		return nil
 	}
-	fileWriter, err := writer.CreateFormFile(name, f.filename)
+	fileWriter, err := writer.CreateFormFile(key, f.filename)
 	if err != nil {
 		return err
 	}
