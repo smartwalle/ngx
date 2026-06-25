@@ -93,6 +93,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	var body io.Reader
 	var bodyEncoder BodyEncoder
 
+	var contentType = r.ContentType
 	var shouldEncodeForm = r.shouldEncodeForm()
 
 	if r.Body != nil {
@@ -103,12 +104,12 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		bodyEncoder = formEncoder()
 	}
 	if bodyEncoder != nil {
-		var contentType ContentType
-		if body, contentType, err = bodyEncoder(r); err != nil {
+		var nContentType ContentType
+		if body, nContentType, err = bodyEncoder(r); err != nil {
 			return nil, err
 		}
-		if contentType != "" {
-			r.ContentType = contentType
+		if nContentType != "" {
+			contentType = nContentType
 		}
 	}
 
@@ -136,8 +137,8 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	if header == nil {
 		header = http.Header{}
 	}
-	if r.ContentType != "" {
-		header.Set(kContentType, r.ContentType)
+	if contentType != "" {
+		header.Set(kContentType, contentType)
 	}
 	req.Header = header
 
