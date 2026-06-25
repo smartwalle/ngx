@@ -19,23 +19,16 @@ func (r *Request) CURL() (string, error) {
 	}
 
 	var body *bytes.Buffer
-	var contentType = r.ContentType
-	var forceQuery bool
-
-	if r.method == http.MethodGet ||
-		r.method == http.MethodTrace ||
-		r.method == http.MethodOptions ||
-		r.method == http.MethodHead ||
-		r.method == http.MethodDelete {
-		forceQuery = true
-	}
-
 	var bodyEncoder BodyEncoder
+
+	var contentType = r.ContentType
+	var shouldEncodeForm = r.shouldEncodeForm()
+
 	if r.Body != nil {
 		bodyEncoder = r.Body
 	} else if len(r.File) > 0 {
 		// File is translated to curl --form later so paths remain visible.
-	} else if len(r.Form) > 0 && !forceQuery {
+	} else if len(r.Form) > 0 && shouldEncodeForm {
 		bodyEncoder = formEncoder()
 	}
 	if bodyEncoder != nil {
@@ -54,9 +47,8 @@ func (r *Request) CURL() (string, error) {
 		}
 	}
 
-	var rawURL = *r.url
 	var rawQuery = CloneValues(r.Query)
-	if forceQuery {
+	if !shouldEncodeForm {
 		if rawQuery == nil {
 			rawQuery = url.Values{}
 		}
@@ -66,11 +58,13 @@ func (r *Request) CURL() (string, error) {
 			}
 		}
 	}
+
+	var rawURL = *r.url
 	if len(rawQuery) > 0 {
 		rawURL.RawQuery = rawQuery.Encode()
 	}
-
 	var cmd = curl.New(r.method, rawURL.String())
+
 	var useMultipartForm bool
 	if len(r.File) > 0 && r.Body == nil {
 		if err := addCurlForm(cmd, r); err != nil {
