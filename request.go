@@ -110,8 +110,12 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		bodyEncoder = formEncoder()
 	}
 	if bodyEncoder != nil {
-		if body, err = bodyEncoder(r); err != nil {
+		var contentType ContentType
+		if body, contentType, err = bodyEncoder(r); err != nil {
 			return nil, err
+		}
+		if contentType != "" {
+			r.ContentType = contentType
 		}
 	}
 
