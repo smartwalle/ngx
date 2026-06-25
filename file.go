@@ -9,11 +9,11 @@ import (
 type FileForm map[string]File
 
 func (f FileForm) AddFile(key, filename, filepath string) {
-	f.Add(key, fileInfo{filename: filename, filepath: filepath})
+	f.Add(key, FileInfo{Filename: filename, Filepath: filepath})
 }
 
 func (f FileForm) AddObject(key, filename string, file io.Reader) {
-	f.Add(key, fileObject{filename: filename, reader: file})
+	f.Add(key, FileObject{Filename: filename, Reader: file})
 }
 
 func (f FileForm) Add(key string, file File) {
@@ -33,18 +33,18 @@ type File interface {
 	Write(key string, writer *multipart.Writer) error
 }
 
-type fileInfo struct {
-	filename string
-	filepath string
+type FileInfo struct {
+	Filename string
+	Filepath string
 }
 
-func (f fileInfo) Write(key string, writer *multipart.Writer) error {
-	file, err := os.Open(f.filepath)
+func (f FileInfo) Write(key string, writer *multipart.Writer) error {
+	file, err := os.Open(f.Filepath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	fileWriter, err := writer.CreateFormFile(key, f.filename)
+	fileWriter, err := writer.CreateFormFile(key, f.Filename)
 	if err != nil {
 		return err
 	}
@@ -54,20 +54,20 @@ func (f fileInfo) Write(key string, writer *multipart.Writer) error {
 	return nil
 }
 
-type fileObject struct {
-	filename string
-	reader   io.Reader
+type FileObject struct {
+	Filename string
+	Reader   io.Reader
 }
 
-func (f fileObject) Write(key string, writer *multipart.Writer) error {
-	if f.reader == nil {
+func (f FileObject) Write(key string, writer *multipart.Writer) error {
+	if f.Reader == nil {
 		return nil
 	}
-	fileWriter, err := writer.CreateFormFile(key, f.filename)
+	fileWriter, err := writer.CreateFormFile(key, f.Filename)
 	if err != nil {
 		return err
 	}
-	if _, err = io.Copy(fileWriter, f.reader); err != nil {
+	if _, err = io.Copy(fileWriter, f.Reader); err != nil {
 		return err
 	}
 	return nil
