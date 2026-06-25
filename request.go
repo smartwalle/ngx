@@ -93,13 +93,13 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	var body io.Reader
 	var bodyEncoder BodyEncoder
 
-	var mergeForm = r.mergeFormToQuery()
+	var shouldEncodeForm = r.shouldEncodeForm()
 
 	if r.Body != nil {
 		bodyEncoder = r.Body
 	} else if len(r.File) > 0 {
 		bodyEncoder = multiEncoder()
-	} else if len(r.Form) > 0 && !mergeForm {
+	} else if len(r.Form) > 0 && shouldEncodeForm {
 		bodyEncoder = formEncoder()
 	}
 	if bodyEncoder != nil {
@@ -118,7 +118,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	}
 
 	var rawQuery = CloneValues(r.Query)
-	if mergeForm {
+	if !shouldEncodeForm {
 		if rawQuery == nil {
 			rawQuery = url.Values{}
 		}
@@ -147,15 +147,15 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	return req, nil
 }
 
-func (r *Request) mergeFormToQuery() bool {
+func (r *Request) shouldEncodeForm() bool {
 	if r.method == http.MethodGet ||
 		r.method == http.MethodTrace ||
 		r.method == http.MethodOptions ||
 		r.method == http.MethodHead ||
 		r.method == http.MethodDelete {
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 func (r *Request) Do(ctx context.Context) (*http.Response, error) {
