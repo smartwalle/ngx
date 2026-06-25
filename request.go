@@ -91,22 +91,15 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		return nil, errors.New("ngx: request url is nil; use NewRequest with a valid URL")
 	}
 	var body io.Reader
-	var forceQuery bool
-
-	if r.method == http.MethodGet ||
-		r.method == http.MethodTrace ||
-		r.method == http.MethodOptions ||
-		r.method == http.MethodHead ||
-		r.method == http.MethodDelete {
-		forceQuery = true
-	}
-
 	var bodyEncoder BodyEncoder
+
+	var mergeForm = r.mergeFormToQuery()
+
 	if r.Body != nil {
 		bodyEncoder = r.Body
 	} else if len(r.File) > 0 {
 		bodyEncoder = multiEncoder()
-	} else if len(r.Form) > 0 && !forceQuery {
+	} else if len(r.Form) > 0 && !mergeForm {
 		bodyEncoder = formEncoder()
 	}
 	if bodyEncoder != nil {
@@ -125,7 +118,7 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	}
 
 	var rawQuery = CloneValues(r.Query)
-	if forceQuery {
+	if mergeForm {
 		if rawQuery == nil {
 			rawQuery = url.Values{}
 		}
@@ -152,6 +145,17 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		req.AddCookie(cookie)
 	}
 	return req, nil
+}
+
+func (r *Request) mergeFormToQuery() bool {
+	if r.method == http.MethodGet ||
+		r.method == http.MethodTrace ||
+		r.method == http.MethodOptions ||
+		r.method == http.MethodHead ||
+		r.method == http.MethodDelete {
+		return true
+	}
+	return false
 }
 
 func (r *Request) Do(ctx context.Context) (*http.Response, error) {
