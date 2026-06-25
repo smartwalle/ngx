@@ -2,6 +2,7 @@ package ngx
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -34,6 +35,7 @@ const (
 type Request struct {
 	method      string
 	url         *url.URL
+	err         error
 	Client      *http.Client
 	Header      http.Header
 	Body        BodyEncoder // 如果同时设置了 Body 和 Form(File)，则 Body 的优先级高于 Form(File)，且 Form(File) 中的信息将被舍弃。
@@ -45,17 +47,20 @@ type Request struct {
 }
 
 func NewRequest(method, rawURL string, opts ...Option) *Request {
-	var nURL, _ = url.Parse(rawURL)
+	var nURL, err = url.Parse(rawURL)
 	var req = &Request{}
+	req.err = err
 	req.method = strings.ToUpper(method)
-	req.url = nURL
 	req.ContentType = ContentTypeURLEncode
 	req.Header = http.Header{}
-	req.Query = nURL.Query()
+	req.Query = url.Values{}
 	req.Form = url.Values{}
 	req.File = FileForm{}
-
-	req.url.RawQuery = ""
+	if nURL != nil {
+		req.url = nURL
+		req.Query = nURL.Query()
+		req.url.RawQuery = ""
+	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(req)
@@ -65,7 +70,9 @@ func NewRequest(method, rawURL string, opts ...Option) *Request {
 }
 
 func (r *Request) JoinPath(paths ...string) {
-	r.url = r.url.JoinPath(paths...)
+	if r.url != nil {
+		r.url = r.url.JoinPath(paths...)
+	}
 }
 
 func (r *Request) AddCookie(cookie *http.Cookie) {
@@ -77,6 +84,12 @@ func (r *Request) SetCookies(cookies []*http.Cookie) {
 }
 
 func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.url == nil {
+		return nil, errors.New("ngx: request url is nil; use NewRequest with a valid URL")
+	}
 	var body io.Reader
 	var forceQuery bool
 
