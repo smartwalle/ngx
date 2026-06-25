@@ -100,12 +100,12 @@ func (r *Request) CURL() (string, error) {
 
 func addCurlForm(cmd *curl.Command, req *Request) error {
 	for _, file := range req.File {
-		if _, ok := file.(FileInfo); !ok {
+		if _, ok := file.(LocalFile); !ok {
 			return errors.New("ngx: cannot convert file object to curl command; file path is required")
 		}
 	}
 	for key, file := range req.File {
-		var info = file.(FileInfo)
+		var info = file.(LocalFile)
 		cmd.File(key, info.Filepath, info.Filename)
 	}
 	for key, values := range req.Form {

@@ -9,11 +9,11 @@ import (
 type FileForm map[string]File
 
 func (f FileForm) AddFile(key, filename, filepath string) {
-	f.Add(key, FileInfo{Filename: filename, Filepath: filepath})
+	f.Add(key, LocalFile{Filename: filename, Filepath: filepath})
 }
 
 func (f FileForm) AddObject(key, filename string, file io.Reader) {
-	f.Add(key, FileObject{Filename: filename, Reader: file})
+	f.Add(key, FileReader{Filename: filename, Reader: file})
 }
 
 func (f FileForm) Add(key string, file File) {
@@ -33,12 +33,12 @@ type File interface {
 	Write(key string, writer *multipart.Writer) error
 }
 
-type FileInfo struct {
+type LocalFile struct {
 	Filename string
 	Filepath string
 }
 
-func (f FileInfo) Write(key string, writer *multipart.Writer) error {
+func (f LocalFile) Write(key string, writer *multipart.Writer) error {
 	file, err := os.Open(f.Filepath)
 	if err != nil {
 		return err
@@ -54,12 +54,12 @@ func (f FileInfo) Write(key string, writer *multipart.Writer) error {
 	return nil
 }
 
-type FileObject struct {
+type FileReader struct {
 	Filename string
 	Reader   io.Reader
 }
 
-func (f FileObject) Write(key string, writer *multipart.Writer) error {
+func (f FileReader) Write(key string, writer *multipart.Writer) error {
 	if f.Reader == nil {
 		return nil
 	}
