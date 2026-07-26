@@ -36,7 +36,7 @@ func (r *Request) CURL() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if nContentType != "" {
+		if nContentType != "" && contentType == "" {
 			contentType = nContentType
 		}
 		if reader != nil {
@@ -45,6 +45,9 @@ func (r *Request) CURL() (string, error) {
 				return "", err
 			}
 		}
+	}
+	if contentType == "" {
+		contentType = ContentTypeURLEncode
 	}
 
 	var rawQuery = CloneValues(r.Query)
@@ -79,7 +82,7 @@ func (r *Request) CURL() (string, error) {
 	if header == nil {
 		header = http.Header{}
 	}
-	if !useMultipartForm && contentType != "" {
+	if !useMultipartForm {
 		header.Set(kContentType, contentType)
 	}
 	for key, values := range header {

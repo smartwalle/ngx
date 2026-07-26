@@ -128,7 +128,7 @@ var tests = []TestValue{
 		rBody:       []byte("Good"),
 		builder: func(t *testing.T, test TestValue, server *httptest.Server) *ngx.Request {
 			var req = ngx.NewRequest(test.method, server.URL+test.path+"?"+test.rawQuery)
-			// Header 中有设置 Content-Type 时，单独调用 SetContentType 方法设置的 Content-Type 将被忽略
+			// Header 中有设置 Content-Type 时，Request.ContentType 会覆盖 Header 中的值。
 			req.Header.Set("Content-Type", ngx.ContentTypeURLEncode)
 			req.ContentType = test.contentType
 

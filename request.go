@@ -51,7 +51,6 @@ func NewRequest(method, rawURL string, opts ...Option) *Request {
 	var req = &Request{}
 	req.err = err
 	req.method = strings.ToUpper(method)
-	req.ContentType = ContentTypeURLEncode
 	req.Header = http.Header{}
 	req.Query = url.Values{}
 	req.Form = url.Values{}
@@ -100,6 +99,8 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		bodyEncoder = r.Body
 	} else if len(r.File) > 0 {
 		bodyEncoder = multiEncoder()
+		// multipart 的 boundary 由 writer 生成，Content-Type 必须使用 encoder 返回值。
+		contentType = ""
 	} else if len(r.Form) > 0 && shouldEncodeForm {
 		bodyEncoder = formEncoder()
 	}
@@ -108,9 +109,12 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 		if body, nContentType, err = bodyEncoder(r); err != nil {
 			return nil, err
 		}
-		if nContentType != "" {
+		if nContentType != "" && contentType == "" {
 			contentType = nContentType
 		}
+	}
+	if contentType == "" {
+		contentType = ContentTypeURLEncode
 	}
 
 	req, err = http.NewRequestWithContext(ctx, r.method, r.url.String(), body)
@@ -137,9 +141,8 @@ func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
 	if header == nil {
 		header = http.Header{}
 	}
-	if contentType != "" {
-		header.Set(kContentType, contentType)
-	}
+	header.Set(kContentType, contentType)
+
 	req.Header = header
 
 	for _, cookie := range r.Cookies {
