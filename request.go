@@ -32,11 +32,15 @@ const (
 	Options = http.MethodOptions
 )
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type Request struct {
 	method      string
 	url         *url.URL
 	err         error
-	Client      *http.Client
+	Client      HTTPClient
 	Header      http.Header
 	Body        BodyEncoder // 如果同时设置了 Body 和 Form(File)，则 Body 的优先级高于 Form(File)，且 Form(File) 中的信息将被舍弃。
 	Query       url.Values  // 该参数将拼接在 URL 的查询参数中。
@@ -78,8 +82,8 @@ func (r *Request) AddCookie(cookie *http.Cookie) {
 	r.Cookies = append(r.Cookies, cookie)
 }
 
-func (r *Request) SetCookies(cookies []*http.Cookie) {
-	r.Cookies = cookies
+func (r *Request) UseClient(client HTTPClient) {
+	r.Client = client
 }
 
 func (r *Request) Request(ctx context.Context) (req *http.Request, err error) {
