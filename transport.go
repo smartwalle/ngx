@@ -1,25 +1,26 @@
-package lb
+package ngx
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-// Endpoint 表示一个服务端点。
 type Endpoint struct {
-	Name string
 	Addr string
+}
+
+// Picker 根据服务名称选择服务端点。
+type Picker interface {
+	Pick(ctx context.Context, service string) (Endpoint, error)
 }
 
 // Transport 实现基于服务发现的 HTTP 请求级负载均衡。
 type Transport struct {
-	base *http.Transport
-
-	resolver Resolver
-	balancer Balancer
+	base   *http.Transport
+	picker Picker
 }
 
 // NewTransport 创建服务发现 Transport。
@@ -36,19 +37,14 @@ func NewTransport(base *http.Transport) *Transport {
 	}
 }
 
-// UseBalancer 设置负载均衡器。
-func (t *Transport) UseBalancer(balancer Balancer) {
-	t.balancer = balancer
-}
-
-// UseResolver 设置服务发现。
-func (t *Transport) UseResolver(resolver Resolver) {
-	t.resolver = resolver
+// UsePicker 设置负载均衡器。
+func (t *Transport) UsePicker(picker Picker) {
+	t.picker = picker
 }
 
 // RoundTrip 实现请求级负载均衡。
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if t.balancer == nil || t.resolver == nil {
+	if t.picker == nil {
 		return t.base.RoundTrip(req)
 	}
 
@@ -59,23 +55,12 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	var service = normalizeHost(req.URL.Hostname())
 
-	endpoints, err := t.resolver.Resolve(req.Context(), service)
+	selected, err := t.picker.Pick(req.Context(), service)
 	if err != nil {
 		return nil, err
 	}
-	if len(endpoints) == 0 {
-		return t.base.RoundTrip(req)
-	}
 
-	selected, err := t.balancer.Pick(req.Context(), service, endpoints)
-	if err != nil {
-		return nil, err
-	}
-	if selected.Addr == "" {
-		return nil, errors.New("ngx: balancer selected endpoint with empty address")
-	}
-
-	endpointURL, err := parseEndpointAddr(selected.Addr)
+	endpointURL, err := parseEndpointURL(selected.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -104,8 +89,12 @@ func (t *Transport) CloseIdleConnections() {
 	t.base.CloseIdleConnections()
 }
 
-// parseEndpointAddr 解析并验证 Endpoint 地址。
-func parseEndpointAddr(addr string) (*url.URL, error) {
+// parseEndpointURL 解析并验证 Endpoint 地址。
+func parseEndpointURL(addr string) (*url.URL, error) {
+	if addr == "" {
+		return nil, fmt.Errorf("ngx: invalid endpoint address")
+	}
+
 	u, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("ngx: invalid endpoint address %q: %w", addr, err)
