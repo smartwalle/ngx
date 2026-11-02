@@ -8,13 +8,9 @@ import (
 	"strings"
 )
 
-type Endpoint struct {
-	Addr string
-}
-
 // Picker 根据服务名称选择服务端点。
 type Picker interface {
-	Pick(ctx context.Context, service string) (Endpoint, error)
+	Pick(ctx context.Context, service string) (string, error)
 }
 
 // Transport 实现基于服务发现的 HTTP 请求级负载均衡。
@@ -60,7 +56,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	endpointURL, err := parseEndpointURL(selected.Addr)
+	endpointURL, err := parseEndpointURL(selected)
 	if err != nil {
 		return nil, err
 	}
